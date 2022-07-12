@@ -6,3 +6,4 @@ Even though it is working (it can be applied on a small sample of images simulat
 <strong>Python packages required :</strong>
 matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 
+![alt text](https://github.com/Anthony96/JWSTmorph/results/example_result.png?raw=true)
