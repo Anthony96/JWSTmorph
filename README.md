@@ -6,6 +6,14 @@ Even though it is working (it can be applied on a small sample of images simulat
 <strong>Python packages required :</strong>
 matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 
+<strong>Instructions :</strong>
+To run the code simply type: <br>
+<font face="Verdana, Arial, Helvetica, sans-serif" color="blue">
+<font size="4">python main.py</font><br />
+</font>
+
+make_final_plots_results.py is for post-processing
+
 <strong>Example of output images (Galaxy ID 104, band F090W) :</strong>
 ![ID_104_band_f090w_ok](https://user-images.githubusercontent.com/12728781/178595197-63f5971b-51e8-43c5-960f-f278e7245674.png)
 ![104_clumpmap_band_f090w](https://user-images.githubusercontent.com/12728781/178595024-9d1030fe-c87a-4061-befe-66da95611c0a.png)
