@@ -805,8 +805,9 @@ def asymmetry_verysimple_4bkg(image_smaller33,maskgood_smaller33,xc33,yc33) :
   return asymmetry133b,denominatore33b
 
 
-
+# shape_asymmetry : 
 def asymmetry_function2_shape(xcen,ycen,image_smaller,maskgood_smaller,show_image) :
+  show_image_shape_asymmetry=False
   center_search_x=np.arange(xcen-4,xcen+4,0.2)
   center_search_y=np.arange(ycen-4,ycen+4,0.2)
   

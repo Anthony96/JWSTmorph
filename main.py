@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-##########################################
+###################################################################
 __author__ = "Antonello Calabro"
 __affiliation__= "INAF - Osservatorio Astronomico di Roma"
 #__copyright__ = "Copyright 2007, The Cogent Project"
@@ -11,7 +11,7 @@ __license__ = "GPL"
 __maintainer__ = "Antonello Calabro"
 __email__ = "antonello.calabro@inaf.it"
 __status__ = "Production"
-##########################################
+###################################################################
 
 import os,sys,time
 import numpy as np
@@ -71,7 +71,7 @@ file_catalog=input_folder+"assembled_catalog.cat"
 table_catalog=np.genfromtxt(file_catalog,names=True,dtype=None)
 IDobj_all=table_catalog['ID'] ; ra_all=table_catalog['RA'] ; dec_all=table_catalog['DEC']
 if which_subset=='subset_EOR' :
-    ID_selected=[65,76,79,80,91,104,113,125,129] # 65,76,79,80,91,104,113,125,129]
+    ID_selected=[65,76,79,80,91,104,113] #,125,129] # 65,76,79,80,91,104,113,125,129]
     IDlista=np.array(ID_selected)
 
 # OPEN GALAXY INDICES SEGMENTATION MAPS : 
@@ -2081,7 +2081,7 @@ if calculate_parameters==True :
               #background_all=1*background_all
               #print 'Created segmap, now convert bool to int'
               #print image_new2_reduced.shape
-              
+              '''
               # ------ ------ ------ ------ ------ ------ ------ ------- ------ ------ 
               # Background estimation and subtraction :   (lo puoi fare prima o dopo dello smoothing in realta')
               centers_asymmetry=(center_ax,center_ay)
@@ -2116,7 +2116,7 @@ if calculate_parameters==True :
               # Get binary image that you should use to calculate shape asymmetry as Pawlik 2016
               #binary_pawlik,centroid=binary_detection_pawlik(imagein_smoothed_skysub*singlegood,std_pawlik)
               
-              imagein_smoothed_skysub_seg = photutils.detect_sources(imagein_smoothed_skysub, np.ones(imagein_smoothed_skysub.shape)*std_pawlik, npixels=50,connectivity=4)
+              imagein_smoothed_skysub_seg = photutils.detect_sources(imagein_smoothed_skysub, np.ones(imagein_smoothed_skysub.shape)*std_pawlik, npixels=10,connectivity=4)
               binary_pawlik=imagein_smoothed_skysub_seg.data
               #binary_pawlik[binary_pawlik>0]=1
               binary_pawlik=1*binary_pawlik 
@@ -2201,17 +2201,34 @@ if calculate_parameters==True :
               #print('good_pixel =',good_pixel)      
                 #while (flux_all < 0.33*total_galaxy_flux):
                 #  flux_all+=Pixel_ordinati
-        
+              '''
+              #plt.imshow(maskgood,origin='lower')
+              #plt.show()
+          
               # Calculate Shape Asymmetry
+              #  print('\n Calculate the shape asymmetry...')
+              #  # maskgood_smaller e' la versione reduced(tagliata) di binary_pawlik
+              #  show_result=False
+              #  shape_asymmetry_last,area_best,xc_best,yc_best=asymmetry_function2_shape(center_ax,center_ay,maskgood_smaller,maskgood_smaller,show_result)
+              #  # print('shape asymmetry last (num) =',shape_asymmetry_last)
+              #  shape_asymmetry=shape_asymmetry_last/(2.*np.sum(maskgood_smaller))
+              #  # print('Shape asymmetry =',shape_asymmetry)
+              #  shape_asymmetry_all[uu,rr]=np.round(shape_asymmetry,3)
+              #  shape_asymmetry_R=np.round(shape_asymmetry,3)
+              #  print('Shape asymmetry =',np.round(shape_asymmetry,3))
+              #  sys.exit()
+
               print('\n Calculate the shape asymmetry...')
               # maskgood_smaller e' la versione reduced(tagliata) di binary_pawlik
               show_result=False
-              shape_asymmetry_last,area_best,xc_best,yc_best=asymmetry_function2_shape(center_ax,center_ay,maskgood_smaller,maskgood_smaller,show_result)
+              shape_asymmetry_last,area_best,xc_best,yc_best=asymmetry_function2_shape(center_ax,center_ay,maskgood,maskgood,show_result)
               # print('shape asymmetry last (num) =',shape_asymmetry_last)
-              shape_asymmetry=shape_asymmetry_last/(2.*np.sum(maskgood_smaller))
+              shape_asymmetry=shape_asymmetry_last/(2.*np.sum(maskgood))
               # print('Shape asymmetry =',shape_asymmetry)
               shape_asymmetry_all[uu,rr]=np.round(shape_asymmetry,3)
               shape_asymmetry_R=np.round(shape_asymmetry,3)
+              print('Shape asymmetry =',np.round(shape_asymmetry,3))
+              #sys.exit()
               
               #print('Anche per la shape asymmetry devi togliere quella del background ???')
               #sys.exit()
