@@ -394,24 +394,38 @@ if calculate_parameters==True :
       
       if (calculate_area_SNpixel==True): # This is wrong , see formula in Lotz et al. (2004)
         
-        print('\n\nCalculate S/N per pixel (Lotz +2004)')
+        print('\n\nCalculate S/N per pixel (Lotz +2004) and standard way')
         area2=np.sum(singlegood)
+        
+        #continue_T=True 
+        #if continue_T==True :
         try :
-          only_source_4=imagein[binary_pawlik_4==1]
-          only_back_4=imagein[binary_pawlik_4==0]
+          only_source_4=imagein[(maskgood==1) & (imagein>0) & (imagein<10)]
+          only_back_4=imagein[ (maskgood==0) & (imagein>0) & (imagein<10)]
           bkg_pawlik_4,std_pawlik_4=background_pawlik(only_back_4)
+          denomin44=np.abs(only_source_4+std_pawlik_4**2)
           #print('only_source_4 =',len(only_source_4),sum(only_source_4))
-          sommatoria_4=only_source_4/np.sqrt(only_source_4+std_pawlik_4**2)
+          sommatoria_4=np.abs(only_source_4)/np.sqrt(denomin44)
           SNpixel_Lotz04=sum(sommatoria_4)/len(only_source_4)
+          #print('bkg_pawlik_4,std_pawlik_4,sommatoria_4, ',bkg_pawlik_4,std_pawlik_4,sommatoria_4,len(only_source_4))
           print('SNpixel_Lotz04 =',SNpixel_Lotz04*1)
           #binary_pawlik,centroid=binary_detection_pawlik(imagein_smoothed_skysub*maskgood,std_pawlik)
           #binary_pawlik[binary_pawlik>0]=1
           
-          SNpixel_img1=image_new*singlegood/sigmabackBK
+          # SNpixel_img1=image_new*singlegood/sigmabackBK
+          # #SNpixel_img2=imagepxm_all*singlegood/sigmabackBK
+          # SNpixel_img1_X=SNpixel_img1[singlegood>0]
+          # #SNpixel_img2_X=SNpixel_img2[imagepxm_all>0]
+          # SNpixel2=np.median(SNpixel_img1_X)
+
+          SNpixel_img1=imagein*maskgood/sigmabackBK
           #SNpixel_img2=imagepxm_all*singlegood/sigmabackBK
-          SNpixel_img1_X=SNpixel_img1[singlegood>0]
+          SNpixel_img1_X=SNpixel_img1[maskgood>0]
           #SNpixel_img2_X=SNpixel_img2[imagepxm_all>0]
           SNpixel2=np.median(SNpixel_img1_X)
+          SNpixel2=np.round(SNpixel2,1)
+          print('SNpixel standard =',SNpixel2)
+
           #sn_per_pixel3[uu,rr]=np.median(SNpixel_img2_X)
           # sn_per_pixel2[uu,rr]= np.sum(image_new*singlegood)/area[uu,rr]/sigmabackBK
           #print area[uu,rr],'  ',sn_per_pixel2[uu,rr]
@@ -428,7 +442,11 @@ if calculate_parameters==True :
         SNpixel2=-9 ; SNpixel_img1=-9
         SNpixel_Lotz04=-9
         area2=-9
-        
+
+
+      # ------------------------------------------------------------------------------
+
+
 
     
       if replace_secondary_sources==True :
@@ -538,8 +556,21 @@ if calculate_parameters==True :
         continue
 
     
+
+
+
+
+
+
+
+
+
+
       # -------------- --------------- -------------- --------------- -----
-        
+      
+
+
+
       # CALCULATE ALL ASYMMETRIES 
       print('\n\nCalculate All Asymmetries (and asymmetry center)')
       #print('Unless the shape-asymmetry, which will be calculated afterwards !!!')
@@ -547,38 +578,39 @@ if calculate_parameters==True :
       if (calculate_asymmetry_center==True) : # Questo calcola anche l'asymmetry !!!!
       # The center of rotation is not defined a priori, but is measured through an iterative process whereby the value of the asymmetry is calculated at the initial central guess (usually the geometric center or light centroid) and then the asymmetry is calculated around this central guess using some fraction of a pixel difference. This is repeated until a global minimum is found (Conselice et al. 2000a).
         
-        try : 
+        #try : 
           imageX1=imagein_replaced*1
-          dim9=int(imageX1.shape[0]/2)
-          row_cc=imageX1[dim9,:]
-          column_cc=imageX1[:,dim9]
-          row_start=np.where(row_cc>0)[0]
-          #print(row_start)
-          column_start=np.where(column_cc>0)[0]
-          #print('column_start =',column_start)
-          if segmentation_type=='square' :
-            imageX2=imageX1[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
-            #imageX2=image_new[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
-            maskgood_smaller=maskgood[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
-            dim8=int(imageX2.shape[0]/2)
-          else : dim8=int(imageX1.shape[0]/2)
+          dim9=round(imageX1.shape[0]/2)
+          # row_cc=imageX1[dim9,:]
+          # column_cc=imageX1[:,dim9]
+          # row_start=np.where(row_cc>0)[0]
+          # #print(row_start)
+          # column_start=np.where(column_cc>0)[0]
+          # #print('column_start =',column_start)
+          # if segmentation_type=='square' :
+          #   imageX2=imageX1[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
+          #   #imageX2=image_new[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
+          #   maskgood_smaller=maskgood[column_start[0]:column_start[-1]+1,row_start[0]:row_start[-1]+1]
+          #   dim8=int(imageX2.shape[0]/2)
+          # else : dim8=int(imageX1.shape[0]/2)
     
-          range8=5
-          centri8=np.arange(dim8-range8,dim8+range8,0.1)
+          #range8=10
+          #centri8=np.arange(dim8-range8,dim8+range8,0.5)
       
-          range9=5
-          centri9=np.arange(dim9-range9,dim9+range9,0.1)
+          range9=4
+          centri=np.arange(dim9-range9,dim9+range9,1)
           asymmetry_array=[] ; ik_all=[] ; ip_all=[] ; counterA=0
-          support_asymm=imageX2>-1e20
+          support_asymm=imageX1>-1e20
           support2_asymm=support_asymm*1
-          centri=centri9*1  # centri8 for imageX2, otherwise centri9 for image_new
+          # centri=centri9*1  # centri8 for imageX2, otherwise centri9 for image_new
           for ik in centri :
             for ip in centri :
               # print('center =',ik,ip)
               # Questa specie di maschera la metto (support2_asymm), pero' non serve a niente !!!
               #_asymmetry1,_denominatore=asymmetry_simple(imageX2,support2_asymm,ik,ip)
               #_asymmetry1,_denominatore=asymmetry_simple(image_new,support2_asymm,ik,ip)
-              _asymmetry1,_denominatore=asymmetry_simple(imagein,support2_asymm,ik,ip)
+              # _asymmetry1,_denominatore=asymmetry_simple(imagein,support2_asymm,ik,ip)
+              _asymmetry1,_denominatore=asymmetry_simple(imagein_replaced,maskgood,ik,ip)
               #asymmetry_last,area_best,xc_best,yc_best,denominatore_best=asymmetry_function2(ik,ip,imageX2,maskgood_smaller,show_result)
               asymmetry_array.append(_asymmetry1)
               ik_all.append(ik)
@@ -587,24 +619,27 @@ if calculate_parameters==True :
               #print('asymmetry last (numeratore) =',asymmetry_last)
               #print('denominatore best =',denominatore_best)
           
-          counter_vector=np.arange(1,counterA+1,1)
+          #counter_vector=np.arange(1,counterA+1,1)
           asymmetry_array=np.array(asymmetry_array)
-          asymmetry_array=asymmetry_array[(asymmetry_array>-1) & (asymmetry_array<10)]
+          #print(asymmetry_array)
+          #quit()
+          # asymmetry_array=asymmetry_array[(asymmetry_array>-1) & (asymmetry_array<10)]
           minimum_asymmetry=min(asymmetry_array)
-          print('minimum asymmetry =',minimum_asymmetry)
+          #print('minimum asymmetry =',minimum_asymmetry)
           indexmin=np.where(asymmetry_array<minimum_asymmetry+0.00001)[0]
           if len(indexmin)>=1 : 
             indexmin=indexmin[0]
           
           center_ax=ik_all[indexmin] ; center_ay=ip_all[indexmin]
-          sizeKA=8 ; 
-          Rmax_guess=5
+          sizeKA=20 ; Rmax_guess=10
           which_calc='asymmetry'
           #background_asymmetry,background_smoothness_notgood=asymmetry_bkg_simple(sizeKA,maskgood,image_new,Rmax_guess,which_calc,Rmax_guess)  
-          background_asymmetry,background_smoothness_notgood=asymmetry_bkg_simple(sizeKA,maskgood,imagein_replaced,Rmax_guess,which_calc,Rmax_guess)  
+          background_asymmetry,min_bkg_asymmetry,background_smoothness_notgood=asymmetry_bkg_simple(sizeKA,binary_pawlik_4_complete,imagein_replaced,Rmax_guess,which_calc,Rmax_guess)  
+          print('background asymmetry and minimum =',background_asymmetry,min_bkg_asymmetry)
           asymmetry_final=minimum_asymmetry-background_asymmetry
           print('asymmetry center =',center_ax,center_ay)
           print('Asymmetry, asymm background, and asymmetry final =')
+          print(minimum_asymmetry,min_bkg_asymmetry,asymmetry_final)
           # print('xc_asymmetry from statmorph =',morphsingle.xc_asymmetry)
           # print('yc_asymmetry =', morphsingle.yc_asymmetry)
           #print('asymmetry statmorph =', morphsingle.asymmetry)
@@ -612,14 +647,21 @@ if calculate_parameters==True :
           # print('concentration statmorph =', morphsingle.concentration)
           #plt.plot(counter_vector,asymmetry_array,color='cyan',lw=1.2)
           asymmetry_R=np.round(asymmetry_final,3)
-        except :
-          asymmetry_R=0
-          center_ax=imagein.shape[0]/2 ; center_ay=imagein.shape[1]/2
+        #except :
+        #  asymmetry_R=0
+        #  center_ax=imagein.shape[0]/2 ; center_ay=imagein.shape[1]/2
       else :
         asymmetry_R=0
         center_ax=imagein.shape[0]/2 ; center_ay=imagein.shape[1]/2
+      
+      #plt.imshow(maskgood,origin='lower')
+      #plt.show()
+      print('asymmetry center =',center_ax,center_ay)
+      #sys.exit()
     
-    
+
+
+
 
     # CALCULATE RMAX 
 
@@ -775,7 +817,7 @@ if calculate_parameters==True :
       # ---------------------------------------------------------------------------------
       if calculate_smoothness==True :
         
-        #try :
+        try :
           print('\nCalculate smoothness : --------------- --------------- ------------ -----------\n')
           print('image shape =',image_new_replaced.shape)
           #print('Pixel scale =',IDpixscale[iyy])
@@ -829,7 +871,7 @@ if calculate_parameters==True :
           
             sizeKA33=skybox_arcsec/IDpixscale_banda
             which_calc='smoothness'
-            background_asymmetry_notgood,background_smoothness_good=asymmetry_bkg_simple(sizeKA33,maskgood,imagein_replaced,Rmax,which_calc,smoothradiusX22)  
+            background_asymmetry_notgood,min_as_back,background_smoothness_good=asymmetry_bkg_simple(sizeKA33,maskgood,imagein_replaced,Rmax,which_calc,smoothradiusX22)  
             print('smoothness background =',background_smoothness_good)
         
             smoothness22=smoothness22_source-background_smoothness_good
@@ -840,7 +882,8 @@ if calculate_parameters==True :
             smoothness22_source = -9
             smoothness22= -9.
 
-          
+
+
           if show_images_masks_smoothness==True :
             try : 
               # VISUALIZE ORIGINAL IMAGE, CLUMPY PIXELS and deblended segmenttion map on detected clumps
@@ -919,7 +962,8 @@ if calculate_parameters==True :
               plt.savefig(namefile,dpi=80)
               plt.close(fig9)
   
-          #except : smoothness22= 0
+        except : smoothness22= 0
+
       else :
         smoothness22= -9.
      
@@ -1219,7 +1263,7 @@ if calculate_parameters==True :
               #print('Calculate Gini manually :')
               #good=singlegood.ravel()
               
-              segm_gal=image_new_masked[final_mask_galaxy_segm==1]
+              segm_gal=image_new_masked[maskgood==1]
               image_new_1d=segm_gal.ravel()  # imagein o image_new ci devono essere (sono rispettivamente non e background subtracted)
               #print good[0]
               #image_new_1d=image_new_1d[good>0]
@@ -1367,25 +1411,32 @@ if calculate_parameters==True :
             #m20_all[uu,rr]=0
             #'
             try :
-              imageX1=binary_pawlik_4*image_new # image_new_replaced*maskgood
+
+            #kkll=2
+            #if kkll==2 :
+              imageX1=imagein_replaced*maskgood # maskgood*imagein_replaced # image_new_replaced*maskgood
               #plt.imshow(imageX1,origin='lower')
               #plt.show()
-    
-              centersF_x=np.arange(round(center_ax)-4,round(center_ax)+4,1) 
-              centersF_y=np.arange(round(center_ay)-4,round(center_ay)+4,1) 
+              
+              passo=4
+              centersF_x=np.arange(round(center_ax)-passo,round(center_ax)+passo,1) 
+              centersF_y=np.arange(round(center_ay)-passo,round(center_ay)+passo,1) 
               muTOT_final_value,x_center_muTOT,y_center_muTOT=minimize_mu(imageX1,centersF_x,centersF_y)
               mu20=M20_simple(imageX1,x_center_muTOT,y_center_muTOT)
-              
-              print('M20 final (handmade) =',np.round(mu20/muTOT_final_value,3))
+              print('Mu_tot and mu20 and centers =',muTOT_final_value,mu20,x_center_muTOT,y_center_muTOT)
+
               m20=mu20/muTOT_final_value ; 
               m20=np.log10(m20)
               m20_all[uu,rr]=np.round(m20,3)
+              print('M20 final (handmade) =',np.round(m20,3))
+              print('\n\n')
+              #quit()
             except :
               m20_all[uu,rr]=-9.
   
           else :
             m20_all[uu,rr]=-9.
-          
+          #quit()
   
           # --------------------------------------------------------------------          
     
@@ -1465,11 +1516,11 @@ if calculate_parameters==True :
           #   print(min(np.ravel(noisy_img)),max(np.ravel(noisy_img)))
           #  weightmap=noisy_new2,
           
-
-
+          #continueX=True
+          #if continueX==True :
           try : 
             # source_morphs = statmorph.source_morphology(image_new, mask_galaxy_segmentation, psf=psf,skybox_size=skybox_pixel,weightmap=noisy_new2)
-            source_morphs = statmorph.source_morphology(imagein, mask_galaxy_segmentation, psf=psf,skybox_size=round(skybox_arcsec/IDpixscale_banda),weightmap=noisy_img)
+            source_morphs = statmorph.source_morphology(imagein_replaced, mask_galaxy_segmentation, psf=psf,skybox_size=round(skybox_arcsec/IDpixscale_banda),weightmap=noisy_img)
             
             # source_morphs = statmorph.source_morphology(image_new, mask_galaxy_segmentation, psf=psf, weightmap=noisy_new2,skybox_size=15)
             # source_morphs = statmorph.source_morphology(image_background, mask_galaxy_segmentation, psf=psf, weightmap=noisy_new,skybox_size=25)
@@ -1481,7 +1532,18 @@ if calculate_parameters==True :
             #print(source_morphs[1])
             #sys.exit()
             # from statmorph.utils.image_diagnostics import make_figure
-      
+            print('xc_asymmetry =', morph.xc_asymmetry)
+            print('yc_asymmetry =', morph.yc_asymmetry)
+            print('Gini =', morph.gini)
+            print('M20 =', morph.m20)
+            print('sn_per_pixel =', morph.sn_per_pixel)
+            print('C =', morph.concentration)
+            print('concentration hand-made =', concentration)
+            print('A =', morph.asymmetry)
+            print('S =', morph.smoothness)
+            
+            print('flag [0=good, 1=bad] =', morph.flag)
+            #quit()
             # try :
             #   fig = make_figure(morph)
             #   fig.savefig('tutorial.png', dpi=150)
@@ -1578,8 +1640,9 @@ if calculate_parameters==True :
             sn_per_pixel[uu,rr]=round(morphsingle.sn_per_pixel)
             centroid_single=(morphsingle.xc_centroid,morphsingle.yc_centroid)
             petrosian_radius_single=np.round(morphsingle.rpetro_circ,1)
+
   
-            '''
+            
             print('xc_centroid =', morphsingle.xc_centroid)
             print('yc_centroid =', morphsingle.yc_centroid)
             
@@ -1602,6 +1665,7 @@ if calculate_parameters==True :
             print('sky_median =', morphsingle.sky_median)
             print('sky_sigma =', morphsingle.sky_sigma)
             print('flag [0=good, 1=bad]=', morphsingle.flag)
+            '''
             print('Va bene, poi li confronto con il mio metodo e vediamo quali sono giusti\n\n')
             #sys.exit()
             print('\ncompare ginis. Mine, morph and morphsingle =',)

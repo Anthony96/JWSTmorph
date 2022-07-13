@@ -638,6 +638,19 @@ def Cutout2D_mine(image_smaller55,xy_center55,shape55) :
     return new_image55
 
 
+def rot(imageFF, xy, angleC):
+    from scipy.ndimage import rotate
+    im_rot = rotate(imageFF,angleC) 
+    org_center = (np.array(imageFF.shape[:2][::-1])-1)/2.
+    rot_center = (np.array(im_rot.shape[:2][::-1])-1)/2.
+    org = xy-org_center
+    a = np.deg2rad(angleC)
+    new = np.array([org[0]*np.cos(a) + org[1]*np.sin(a),
+            -org[0]*np.sin(a) + org[1]*np.cos(a) ])
+    return im_rot, new+rot_center
+
+
+
 def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
   # Simple function which does not subtract the background !!!
   
@@ -646,7 +659,27 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
   # plt.imshow(image_smaller)
   # plt.show()
 
+  cutout3=image_smaller*1
+  #cutout3[maskgood_smaller==0]=0
   
+  # Rotate around a center :+
+  cutoutE=cutout3[yc-15:yc+15,xc-15:xc+15]
+
+  full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+
+  # rotated_image_smaller=np.rot90(cutout3, 2)
+  #differenceASY=np.absolute(cutout3-other_image)
+  differenceASY=np.absolute(cutoutE-full_img_90)
+  image_smaller_abs=np.abs(cutoutE)
+  denominatorexx=2*np.sum(image_smaller_abs)
+  asymmetry1xx=np.sum(differenceASY)/denominatorexx
+
+  #plt.imshow(cutout3,origin='lower')
+  #plt.show()
+  #plt.imshow(differenceASY,origin='lower')
+  #plt.show()
+  
+  '''
   cutout2 = Cutout2D(image_smaller, (xc, yc), image_smaller.shape[0])
   cutout2d=cutout2.data
   rotated_image_smaller=np.rot90(cutout2d, 2)
@@ -656,7 +689,7 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
   asymmetry1xx=np.sum(differenceASY)/denominatorexx
   #cutout2d=Cutout2D_mine(image_smaller,(xc, yc), image_smaller.shape[0])
   # cutout3 = Cutout2D(maskgood_smaller, (xc, yc), maskgood_smaller.shape[0]-2)
-  
+  '''
 
   #rotated_image_smaller=rotate(image_smaller, 180.0, xc, yc)
   #print(cutout2d.shape)
@@ -694,7 +727,8 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
   #sys.exit()
   # asymmetry1=np.sum(differenceASY*maskJ)/denominatore
   #print('asymmetry1 =',asymmetry1xx)
-
+  
+  plot_asymmetry=False
   if plot_asymmetry==True :
     
     #print('xc and yc =',xc,yc)
@@ -703,7 +737,6 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
     ##  #plt.imshow(image_smaller_abs)
     #plt.title('image_smaller',fontsize=24)
     #plt.show()
-    
     plt.imshow(cutout2d,origin='lower')
     ##  #plt.imshow(rotated_maskgood_smaller)
     ##  #plt.imshow(image_smaller_abs)
@@ -726,8 +759,8 @@ def minimize_mu(image_enter,xcenterA,ycenterA) :
           flussoT=[]  ; coordinateT=[]
           for pt in np.arange(image_enter.shape[0]) : 
               for pw in np.arange(image_enter.shape[1]) :
-                if (image_enter[pt,pw]>0) : 
-                  flussoT.append(image_enter[pt,pw])
+                if (image_enter[pw,pt]>0) : 
+                  flussoT.append(image_enter[pw,pt])
                   quantity00=(pt-rt)**2+(pw-rw)**2
                   coordinateT.append(quantity00)
           flussoT=np.array(flussoT) ; coordinateT=np.array(coordinateT)
@@ -747,15 +780,17 @@ def minimize_mu(image_enter,xcenterA,ycenterA) :
 
 def M20_simple(image_enterB,x_center_mm,y_center_mm) :
   flussoTb=[]  ; coordinateTb=[]
+  flusso_totale=sum(image_enterB.ravel())
   for ptb in np.arange(image_enterB.shape[0]) : 
       for pwb in np.arange(image_enterB.shape[1]) :
-        if (image_enterB[ptb,pwb]>0) : 
-          flussoTb.append(image_enterB[ptb,pwb])
+        if (image_enterB[pwb,ptb]>0) : 
+          flussoTb.append(image_enterB[pwb,ptb])
           quantity00b=(ptb-x_center_mm)**2+(pwb-y_center_mm)**2
           coordinateTb.append(quantity00b)
   
   flussoTb=np.array(flussoTb)
-  flusso_parziale=flussoTb/sum(flussoTb)
+  #flusso_parziale=flussoTb/sum(flussoTb)
+  flusso_parziale=flussoTb/flusso_totale
   data = {'flux': list(flussoTb), 'partial': list(flusso_parziale), 'coord': coordinateTb}
   df = pd.DataFrame(data)
   df_sorted= df.sort_values('flux',ascending=False)
@@ -1018,6 +1053,55 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
     asymm_array23=[] ; smoothness_background745=[]
     for xcc in centrix :
       for ycc in centriy :
+        
+        #print('xcc and ycc =',xcc,ycc)
+        cutout3=image77*1
+        mask3=maskgood77*1
+        #cutout3[maskgood77==0]=0
+        #print(cutout3.shape)
+        
+        # Rotate around a center :+
+        cutoutE=cutout3[ycc-sizeK7:ycc+sizeK7,xcc-sizeK7:xcc+sizeK7]
+        maskE=mask3[ycc-sizeK7:ycc+sizeK7,xcc-sizeK7:xcc+sizeK7]
+        
+        #print(cutoutE.shape)
+
+        if ( (np.sum(maskE==0)) & (cutoutE.shape[0]-cutoutE.shape[1]==0) ) :
+
+          if which_calc=='asymmetry' :
+            full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+          
+            # rotated_image_smaller=np.rot90(cutout3, 2)
+            #differenceASY=np.absolute(cutout3-other_image)
+            differenceASY=np.absolute(cutoutE-full_img_90)
+            image_smaller_abs=np.abs(cutoutE)
+            denominatorexx=2*np.sum(image_smaller_abs)
+            asymmetry1xx=np.sum(differenceASY)/denominatorexx
+            asymm_array23.append(asymmetry1xx)
+            smoothness_background745.append(0)
+
+          elif which_calc=='smoothness' :
+            imagesmooth745=smooth(cutoutE,smoothtype,int(smoothradiusX745), factor_smooth745)  # Il 15 alla fine che vuol dire ??
+            # Calculate the residual image
+            residuals_orig745=cutoutE-imagesmooth745  # image_4_clumpiness e' immagine background subtracted
+            residuals745=residuals_orig745*1
+            residuals745[residuals745 < 0] = 0
+            #padx=1
+            #residuals745=np.absolute(np.ravel(residuals745[padx:-padx,padx:-padx]))
+            #denomin_745=np.absolute(np.ravel(cutoutE[padx:-padx,padx:-padx]))
+            residuals745=np.absolute(np.ravel(residuals745))
+            denomin_745=np.absolute(np.ravel(cutoutE))
+  
+            _smoothness_background745=sum(residuals745)/sum(denomin_745)
+            #print('\n\n Somme')
+            #print(sum(residuals745))
+            #print(sum(denomin_745))
+            smoothness_background745.append(_smoothness_background745)
+            asymm_array23.append(0)
+
+        
+
+        '''
         cutout23 = Cutout2D(image77, (xcc, ycc), sizeK7)
         cutout23d=cutout23.data
         mask23 = Cutout2D(maskgood77, (xcc, ycc), sizeK7)
@@ -1056,13 +1140,15 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
             #print(sum(denomin_745))
             smoothness_background745.append(_smoothness_background745)
             asymm_array23.append(0)
-  
+        '''
+
     if (asymm_array23==[]) & (which_calc=='asymmetry') :
       print('Continue loop to smaller bkg region') 
     elif (asymm_array23!=[]) & (which_calc=='asymmetry') :
       asymm_array23=np.array(asymm_array23)
       #asymm_array23=asymm_array23[asymm_array23>0]
       median_asymme_backg=np.median(asymm_array23)
+      minimum_asymme_backg=min(asymm_array23)
       median_smoothness_background745=0
       #if (which_calc=='asymmetry') : 
       # print('median asymmetry bkg =',median_asymme_backg)
@@ -1080,7 +1166,7 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
       #print('\nsmoothness background =')
       #print(smoothness_background745)
       #quit()
-      median_asymme_backg=0
+      median_asymme_backg=0 ; minimum_asymme_backg=0
       median_smoothness_background745=np.median(smoothness_background745)
       #if (which_calc=='smoothness') : 
       print('smoothness bkg =',median_smoothness_background745)
@@ -1096,7 +1182,7 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
   print('best size background =',sizeK7)
   #quit()
 
-  return median_asymme_backg,median_smoothness_background745
+  return median_asymme_backg,minimum_asymme_backg,median_smoothness_background745
 
 
 
