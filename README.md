@@ -7,10 +7,8 @@ Even though it is working (it can be applied on a small sample of images simulat
 matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 
 <strong>Instructions :</strong>
-To run the code simply type: <br>
-<font face="Verdana, Arial, Helvetica, sans-serif" color="blue">
-<font size="4">python main.py</font><br />
-</font>
+To run the code simply type: <i> <font size="10"> python main.py </i> </font>
+
 
 make_final_plots_results.py is for post-processing
 
