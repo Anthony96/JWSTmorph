@@ -4,23 +4,26 @@
 ##########################################
 __author__ = "Antonello Calabro"
 __affiliation__= "INAF - Osservatorio Astronomico di Roma"
-#__copyright__ = "Copyright 2007, The Cogent Project"
-#__credits__ = []
-__license__ = "GPL"
-#__version__ = "1.0.1"
+#__copyright__ = "Copyright 2007, The Cogent Project" #__credits__ = []
+__license__ = "GPL" #__version__ = "1.0.1"
 __maintainer__ = "Antonello Calabro"
 __email__ = "antonello.calabro@inaf.it"
 __status__ = "Production"
 ##########################################
 
+# OPEN PHOTOMETRIC CATALOG
 # OPEN TABLE FILE WITH RESULTS
+
+# HISTOGRAMS FOR EACH INDEX (WITH ALL GALAXIES)
+# SCATTER PLOT FOR EACH INDEX (MEDIAN OF ALL GALAXIES)
+# PLOT WITH INDICES REPRESENTED FOR EACH GALAXY
 
 # GINI PARAMETER
 # M20 PARAMETER 
-# CONCENTRATION
-# SHAPE ASYMMETRY
-# SMOOTHNESS
-# CLUMPINESS
+# CONCENTRATION PARAMETER
+# SHAPE ASYMMETRY PARAMETER
+# SMOOTHNESS PARAMETER
+# CLUMPINESS PARAMETER
 
 import os,sys,time
 import numpy as np
@@ -32,6 +35,7 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import scipy,math,glob,random
 import pandas as pd
+from scipy.optimize import curve_fit
 
 from gauss_fit_routines import gaussian,moments,fitgaussian
 
@@ -61,7 +65,7 @@ from photutils.background import Background2D, MedianBackground
 from photutils.aperture import CircularAperture, CircularAnnulus,aperture_photometry
 from photutils.aperture import ApertureStats
 
-from scipy import signal,ndimage
+from scipy import signal,ndimage,stats
 #import matplotlib.animation as animation
 import photutils
 #print('Photutils version =',photutils.__version__)
@@ -91,7 +95,6 @@ _conv_arcsec_to_kpc=1./_conv_kpc_to_arcsec
 conv_kpc_to_arcsec=_conv_kpc_to_arcsec.value
 conv_arcsec_to_kpc=_conv_arcsec_to_kpc.value
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter,FixedLocator
-from scipy import signal,ndimage,stats
 
 from auxiliary import import_table,region,create_circular_mask,fit_gauss,replace_secondary_sources_with_bkg,calc_bg,rmsdiff,cartesian_product,makeGaussian,petrosian_radius,binary_detection_pawlik,background_pawlik,RMAX_calc,smoothed_mask_skysub,asymmetry_function,asymmetry_function2,asymmetry_simple,Cutout2D_mine,minimize_mu,asymmetry_verysimple_4bkg,M20_simple,asymmetry_function2_shape,asymmetry_function_bkg,bkg_search,asymmetry_bkg_simple
 from auxiliary import make_segmentation
@@ -162,7 +165,8 @@ output_folder=cwd+'results/'
 output_folder_segmap=cwd+'segmaps/'
 filenameoutput=output_folder+"results_subset_"+which_subset+".txt"
 
-bande_all=np.array(['f090','f115','f150','f200','f277','f356','f444'])
+bande_index=np.array([1,2,3,4,5,6,7])
+bande_all=np.array(['f090w','f115w','f150w','f200w','f277w','f356w','f444w'])
 IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW,pixel_scale_LW]
 IDfwhm_banda=[0.034,0.040,0.050,0.066,0.091,0.115,0.145] # Taken from https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-predicted-performance/nircam-point-spread-functions
 
@@ -181,9 +185,10 @@ bands_all=results_table['band']
 clumpiness=results_table['c1']
 gini=results_table['gini']
 m20=results_table['m20']
-C=results_table['C']
-S=results_table['S']
+concentration=results_table['C']
+smoothness=results_table['S']
 shapeasy=results_table['shapeasy']
+asymmetry=results_table['A1']
 
 # This should be copied from simulations results :
 mag=np.array([26,27,28])
@@ -191,12 +196,944 @@ uncertainty_gini=np.array([0.05,0.05,0.05])
 uncertainty_m20= np.array([0.08,0.11,0.16])
 uncertainty_C=   np.array([0.15,0.3,0.4])
 uncertainty_shA= np.array([0.07,0.09,0.11])
+uncertainty_A= np.array([0.,0.,0.])
 uncertainty_S=   np.array([0.04,0.06,0.07])
 uncertainty_cl=  np.array([0.02,0.04,0.07])
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ###################################
+# bins=np.arange(0,0.3,0.02)
+#   #bins=np.arange(0,0.3,0.015) #3) # 15) #15)
+# 
+#   n1, bins1, patches1 = ax1.hist(c6A, bins = bins,histtype='bar',facecolor='red',align='mid',edgecolor='darkred',normed=True,linewidth=3,alpha=0.5,label='starburst') #,hatch='\ ')
+#   #n, bins, patches = ax1.hist(c4B, bins = bins,facecolor=None,histtype='bar',align='mid',edgecolor='royalblue',linewidth=4,normed=True,alpha=0.5,label='main sequence') #,hatch='\ ')
+#   n2, bins2, patches2 = ax1.hist(c6B, bins = bins,histtype='bar',facecolor='blue',align='mid',edgecolor='darkblue',normed=True,linewidth=3,alpha=0.5,label='main sequence') #,hatch='\ ')
+#   #n, bins, patches = ax1.hist(c4A, bins = bins,facecolor=None,histtype='step',align='mid',edgecolor='green',linewidth=1.9,normed=True,alpha=1) #,hatch='/')
+#   #n2, bins2, patches2 = plt.hist(nums, bins = x_cont,color='orange',histtype='stepfilled',align='mid')
+#   cTEST=table[ (tableV['distMSnew2']<0.6) & (tableV['c6']>0.02) ]['c6']
+#   print 'median c6 =',np.median(cTEST)
+#   print n2
+#   print np.average([n2[1],n2[2],n2[3]])
+#   #quit()
+# 
+#   cMS=tableV[ (tableV['distMSnew2']<0.6) & (tableV['c6']>0.02)]['c6']
+#   cSB=tableV[ (tableV['distMSnew2']>0.6) & (tableV['c6']>0.02)]['c6']
+#   print max(cMS),max(cSB)
+#   print sorted(cMS)[0:59][-1]
+#   #print len(cMS)
+#   print sorted(cSB)[0:53][-1]
+#   #print 0.9*len(cSB)
+#   #quit()
+#   #n, bins, patches = ax1.hist(c6A, bins = bins,histtype='bar',facecolor='red',align='mid',edgecolor='darkred',normed=False,linewidth=3,alpha=0.5,label='starburst')
+#   crange= tableV[(tableV['c6']<0.105) & (tableV['c6']>0.03)]['c6']
+#   print 'median range =',np.median(crange)
+#   print 'frequency in bins =',n1
+#   print bins1
+#   c6Ax=tableV[ (tableV['distMSnew2']>0.6) & (tableV['c6']<=0.03) ]['c6']
+#   print np.average(c6Ax)
+#   print 'Line 783'
+#   #quit()
+# 
+#   # KOLMOGOROV-SMIRNOV TEST :
+#   kstest=stats.ks_2samp(c6A, c6B)
+#   
+#   print 'KS test results ='
+#   print stats.ks_2samp(c6A, c6B)
+#   ax1.text(0.15,8,'KS test results\n(KS, p-value):\n'+str(np.round(kstest[0],3))+' '+str(np.round(kstest[1],3)),fontsize=13)
+#   print 'Reference for KS test: Kirkman, T.W. (1996) Statistics to Use: Kolmogorov-Smirnov test'
+#   plt.suptitle('Reference for KS test: Kirkman, T.W. (1996) Statistics to Use: Kolmogorov-Smirnov test\nD is the maximum absolute difference between the two cumulative distribution functions',fontsize=12)
+# ###################################
+
+
+
+
+
+
+
+
+
+colors_bande=['k','blue','green','cyan','orange','red','fuchsia']
+
+# HISTOGRAMS FOR EACH INDEX (WITH ALL GALAXIES)
+
+
+# ----------------------------------------------------------------------------
+
+# GINI PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_gini='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_gini=gini[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_gini= (sel_gini>=0) & (sel_gini<=1)
+  gini_good=sel_gini[condition_gini]
+  median_all.append(np.median(gini_good))
+  std_all.append(np.std(gini_good))
+
+  bins=np.arange(0,1,0.1) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(gini_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(gini_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'Gini',fontsize=30,color='blue')
+#plt.suptitle('GINI',fontsize=25,weight='bold')
+ax1.legend(loc='upper left',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'Gini_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+# ----------------------------------------------------------------------------
+
+# M20 PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_m20='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_m20=m20[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_m20= (sel_m20>=-3) & (sel_m20<=0)
+  m20_good=sel_m20[condition_m20]
+  median_all.append(np.median(m20_good))
+  std_all.append(np.std(m20_good))
+
+  bins=np.arange(-3,0,0.3) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(m20_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(m20_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.5   ;  minY=0.1
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'm20',fontsize=30,color='blue')
+#plt.suptitle('m20',fontsize=25,weight='bold')
+ax1.legend(loc='upper left',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'m20_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+# ----------------------------------------------------------------------------
+
+
+# CONCENTRATION PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_concentration='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_concentration=concentration[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_concentration= (sel_concentration>=0) & (sel_concentration<=4)
+  concentration_good=sel_concentration[condition_concentration]
+  median_all.append(np.median(concentration_good))
+  std_all.append(np.std(concentration_good))
+
+  bins=np.arange(0,4,0.3) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(concentration_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(concentration_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.5   ;  minY=0.1
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'concentration',fontsize=30,color='blue')
+#plt.suptitle('concentration',fontsize=25,weight='bold')
+ax1.legend(loc='upper left',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'concentration_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------
+
+# SHAPE ASYMMETRY PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_shapeasy='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_shapeasy=shapeasy[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_shapeasy= (sel_shapeasy>=0) & (sel_shapeasy<=4)
+  shapeasy_good=sel_shapeasy[condition_shapeasy]
+  median_all.append(np.median(shapeasy_good))
+  std_all.append(np.std(shapeasy_good))
+
+  bins=np.arange(0,1,0.1) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(shapeasy_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(shapeasy_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'shapeasy',fontsize=30,color='blue')
+#plt.suptitle('shapeasy',fontsize=25,weight='bold')
+ax1.legend(loc='upper right',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'shapeasy_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+# ----------------------------------------------------------------------------------
+
+# SMOOTHNESS PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_smoothness='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_smoothness=smoothness[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_smoothness= (sel_smoothness>=0) & (sel_smoothness<=1)
+  smoothness_good=sel_smoothness[condition_smoothness]
+  median_all.append(np.median(smoothness_good))
+  std_all.append(np.std(smoothness_good))
+
+  bins=np.arange(0,1,0.1) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(smoothness_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(smoothness_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'smoothness',fontsize=30,color='blue')
+#plt.suptitle('smoothness',fontsize=25,weight='bold')
+ax1.legend(loc='upper right',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'smoothness_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+
+# -------------------------------------------------------------------------------------------
+
+# CLUMPINESS PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_clumpiness='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_clumpiness=clumpiness[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_clumpiness= (sel_clumpiness>=0) & (sel_clumpiness<=1)
+  clumpiness_good=sel_clumpiness[condition_clumpiness]
+  median_all.append(np.median(clumpiness_good))
+  std_all.append(np.std(clumpiness_good))
+
+  bins=np.arange(0,1,0.1) #3) # 15) #15)
+  n1, bins1, patches1 = ax1.hist(clumpiness_good, bins = bins,histtype='bar',facecolor='None',align='mid',edgecolor=colors_bande[ibb],linewidth=3,alpha=0.5,label=bande_all[ibb]) #,hatch='\ ') 
+  ax1.axvline(np.median(clumpiness_good),lw=3,ls='dotted',color=colors_bande[ibb])
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.xaxis.set_major_locator(majorLocatorY)
+ax1.xaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_ylabel('# galaxies',fontsize=25) 
+ax1.set_xlabel(r'clumpiness',fontsize=30,color='blue')
+#plt.suptitle('clumpiness',fontsize=25,weight='bold')
+ax1.legend(loc='upper right',prop={'size':18})
+plt.tight_layout()
+savefigname1=output_folder+'clumpiness_histogram_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def linfunc_simple(x, a, b):
+  return a * x + b
+
+# SCATTER PLOT FOR EACH INDEX (MEDIAN OF ALL GALAXIES)
+
+# GINI PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_gini='blue'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_gini=gini[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_gini= (sel_gini>=0) & (sel_gini<=1)
+  gini_good=sel_gini[condition_gini]
+  median_all.append(np.median(gini_good))
+  std_all.append(np.std(gini_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_gini,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_gini,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_gini)
+
+#from statistics import pearson,spearman,chisqfunc,merit_function_linear_optimize,chi2minimization,curve_fitX,odr,statistics_utils,LEVMARlsq
+#ODR_out=odr('linear',[1,1],[FILx,FILy],[ERRx,ERRy],xy)
+##m=np.round(ODR_out.beta[0],2) ; q=np.round(ODR_out.beta[1],2)
+##dm=np.round(ODR_out.sd_beta[0],2) ; dq=np.round(ODR_out.sd_beta[1],2)
+#m=ODR_out.beta[0] ; q=ODR_out.beta[1]
+#dm=ODR_out.sd_beta[0] ; dq=ODR_out.sd_beta[1]
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'Gini',fontsize=30,color='blue')
+#plt.suptitle('GINI',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'Gini_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+# M20 PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_m20='violet'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_m20=m20[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_m20= (sel_m20>=-3) & (sel_m20<=0)
+  m20_good=sel_m20[condition_m20]
+  median_all.append(np.median(m20_good))
+  std_all.append(np.std(m20_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_m20,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_m20,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_m20)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.5   ;  minY=0.1
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'm20',fontsize=30,color='blue')
+#plt.suptitle('m20',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'m20_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+# CONCENTRATION PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_concentration='green'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_concentration=concentration[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_concentration= (sel_concentration>=0) & (sel_concentration<=4)
+  concentration_good=sel_concentration[condition_concentration]
+  median_all.append(np.median(concentration_good))
+  std_all.append(np.std(concentration_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_concentration,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_concentration,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_concentration)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'concentration',fontsize=30,color='blue')
+#plt.suptitle('concentration',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'concentration_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+# SHAPE ASYMMETRY PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_shapeasy='k'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_shapeasy=shapeasy[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_shapeasy= (sel_shapeasy>=0) & (sel_shapeasy<=1)
+  shapeasy_good=sel_shapeasy[condition_shapeasy]
+  median_all.append(np.median(shapeasy_good))
+  std_all.append(np.std(shapeasy_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_shapeasy,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_shapeasy,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_shapeasy)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'shapeasy',fontsize=30,color='blue')
+#plt.suptitle('shapeasy',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'shapeasy_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+# ASYMMETRY PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_shapeasy='k'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_asymmetry=asymmetry[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_asymmetry=asymmetry[selection]
+  
+  condition_asymmetry= (sel_asymmetry>=0) & (sel_asymmetry<=1)
+  asymmetry_good=sel_asymmetry[condition_asymmetry]
+  median_all.append(np.median(asymmetry_good))
+  std_all.append(np.std(asymmetry_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_asymmetry,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_asymmetry,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_asymmetry)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'asymmetry',fontsize=30,color='blue')
+#plt.suptitle('asymmetry',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'asymmetry_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+# SMOOTHNESS PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_smoothness='orange'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_smoothness=smoothness[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_smoothness= (sel_smoothness>=0) & (sel_smoothness<=1)
+  smoothness_good=sel_smoothness[condition_smoothness]
+  median_all.append(np.median(smoothness_good))
+  std_all.append(np.std(smoothness_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_smoothness,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_smoothness,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_smoothness)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.1   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'smoothness',fontsize=30,color='blue')
+#plt.suptitle('smoothness',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'smoothness_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+
+# -------------------------------------------------------------------------------------------
+
+# CLUMPINESS PARAMETER
+
+fig1= plt.figure(figsize=(12, 8),dpi=80)
+ax1 = fig1.add_subplot(1,1,1)
+
+median_all=[]
+std_all=[]
+color_clumpiness='red'
+
+for ibb in np.arange(len(bande_all)):
+  selection=np.where(bands_all==ibb)[0]
+  #sel_clumpiness=clumpiness[selection]
+  sel_clumpiness=clumpiness[selection]
+  #sel_m20=m20[selection]
+  #sel_C=C[selection]
+  #sel_S=S[selection]
+  #sel_shapeasy=shapeasy[selection]
+  
+  condition_clumpiness= (sel_clumpiness>=0) & (sel_clumpiness<=1)
+  clumpiness_good=sel_clumpiness[condition_clumpiness]
+  median_all.append(np.median(clumpiness_good))
+  std_all.append(np.std(clumpiness_good))
+
+ax1.scatter(bande_all,  median_all,marker='s',facecolor=color_clumpiness,edgecolor='k',lw=1,s=200)
+ax1.errorbar(bande_all, median_all,yerr=std_all,markersize=0,marker='s',color=color_clumpiness,capsize=5,lw=1,ls='None')
+
+popt,pcov=curve_fit(linfunc_simple,bande_index,median_all,sigma=std_all)
+perr = np.sqrt(np.diag(pcov))
+print('results fit (popt and errors) =')
+print(popt)
+print(perr)
+print('\n')
+base_mass=np.arange(0,7,0.01)
+pred1=linfunc_simple(base_mass,popt[0],popt[1])
+meanLOW=popt[1] ;  stdLOW=perr[1]
+ax1.plot(base_mass,pred1,lw=1,ls='dotted',color=color_clumpiness)
+
+for tick in ax1.xaxis.get_major_ticks():
+  tick.label.set_fontsize(25) 
+for tick in ax1.yaxis.get_major_ticks():
+  tick.label.set_fontsize(25)
+majY=0.2   ;  minY=0.05
+majorLocatorY = MultipleLocator(majY)
+minorLocatorY = MultipleLocator(minY)    
+ax1.yaxis.set_major_locator(majorLocatorY)
+ax1.yaxis.set_minor_locator(minorLocatorY)
+ax1.tick_params(axis='both',bottom=True,top=True,right=True,which='both')
+ax1.set_xlabel('',fontsize=6) 
+ax1.set_ylabel(r'clumpiness',fontsize=30,color='blue')
+#plt.suptitle('clumpiness',fontsize=25,weight='bold')
+plt.tight_layout()
+savefigname1=output_folder+'clumpiness_scatter_summary.png'
+plt.savefig(savefigname1,dpi=80,format='png')
+plt.close(fig1)
+
+
+
+
+
+
+
+
+print('STOP HERE FFFGGG')
+sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# PLOT WITH INDICES REPRESENTED FOR EACH GALAXY
 
 for IDgal in ID_selected :
   print('\n\nStarting analyzing galaxy '+str(IDgal))
@@ -206,8 +1143,8 @@ for IDgal in ID_selected :
   sel_clumpiness=clumpiness[selection]
   sel_gini=gini[selection]
   sel_m20=m20[selection]
-  sel_C=C[selection]
-  sel_S=S[selection]
+  sel_C=concentration[selection]
+  sel_S=smoothness[selection]
   sel_shapeasy=shapeasy[selection]
   
   # Styling
@@ -260,7 +1197,7 @@ for IDgal in ID_selected :
     tick.label.set_fontsize(18) 
   for tick in ax2.yaxis.get_major_ticks():
     tick.label.set_fontsize(18)
-  majY=0.2   ;  minY=0.05
+  majY=0.5   ;  minY=0.1
   majorLocatorY = MultipleLocator(majY)
   minorLocatorY = MultipleLocator(minY)    
   ax2.yaxis.set_major_locator(majorLocatorY)
@@ -270,10 +1207,10 @@ for IDgal in ID_selected :
   ax2.set_ylabel('m20',size=21.5)
 
 
-  # CONCENTRATION
-  condition= (sel_C>=0) & (sel_C<=5)
-  ax3.scatter(bande_all[condition],  sel_C[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
-  ax3.errorbar(bande_all[condition], sel_C[condition],yerr=uncertainty_C[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
+  # CONCENTRATION PARAMETER
+  condition= (sel_concentration>=0) & (sel_concentration<=5)
+  ax3.scatter(bande_all[condition],  sel_concentration[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
+  ax3.errorbar(bande_all[condition], sel_concentration[condition],yerr=uncertainty_concentration[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
   
   for tick in ax3.xaxis.get_major_ticks():
     tick.label.set_fontsize(18) 
@@ -290,7 +1227,7 @@ for IDgal in ID_selected :
   
 
 
-  # SHAPE ASYMMETRY
+  # SHAPE ASYMMETRY PARAMETER
   condition= (sel_shapeasy>=-4) & (sel_shapeasy<=5)
   ax4.scatter(bande_all[condition],  sel_shapeasy[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
   ax4.errorbar(bande_all[condition], sel_shapeasy[condition],yerr=uncertainty_shA[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
@@ -310,10 +1247,10 @@ for IDgal in ID_selected :
 
 
 
-  # SMOOTHNESS
-  condition= (sel_S>=0) & (sel_S<=1)
-  ax5.scatter(bande_all[condition],  sel_S[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
-  ax5.errorbar(bande_all[condition], sel_S[condition],yerr=uncertainty_S[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
+  # SMOOTHNESS PARAMETER
+  condition= (sel_smoothness>=0) & (sel_smoothness<=1)
+  ax5.scatter(bande_all[condition],  sel_smoothness[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
+  ax5.errorbar(bande_all[condition], sel_smoothness[condition],yerr=uncertainty_smoothness[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
   
   for tick in ax5.xaxis.get_major_ticks():
     tick.label.set_fontsize(18) 
@@ -330,7 +1267,7 @@ for IDgal in ID_selected :
 
 
 
-  # CLUMPINESS
+  # CLUMPINESS PARAMETER
   condition= (sel_clumpiness>=0) & (sel_clumpiness<=1)
   ax6.scatter(bande_all[condition],  sel_clumpiness[condition],marker='s',facecolor='blue',edgecolor='k',lw=1,s=200)
   ax6.errorbar(bande_all[condition], sel_clumpiness[condition],yerr=uncertainty_cl[1],markersize=0,marker='s',color='blue',capsize=5,lw=1,ls='None')
@@ -353,7 +1290,7 @@ for IDgal in ID_selected :
   plt.suptitle('ID galaxy = '+str(IDgal),fontsize=25,weight='bold')
   plt.tight_layout()
   savefigname=output_folder+'IDgal_'+str(IDgal)+'_summary.png'
-  plt.savefig(savefigname,dpi=80,fomrat='png')
+  plt.savefig(savefigname,dpi=80,format='png')
   plt.close(fig)
 
 
