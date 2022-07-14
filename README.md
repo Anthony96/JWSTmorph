@@ -7,7 +7,7 @@ Even though it is working (it can be applied on a small sample of images simulat
 matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 
 <strong>Instructions :</strong>
-To run the code simply type: <i> <font size="10"> python main.py </i> </font> <br/>
+To run the code simply type: <i> <font size="10"> python main_super_easy.py </i> </font> <br/>
 make_final_plots_results.py is for post-processing <br/><br/><br/>
 
 <strong>Output of the code </strong> (column name and brief description)  :
