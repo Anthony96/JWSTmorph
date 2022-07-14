@@ -20,6 +20,8 @@ make_final_plots_results.py is for post-processing <br/><br/><br/>
 * <strong>shapeasy :</strong> shape asymmetry, as defined in Pawlik et al. (2016)
 * <strong>S :</strong> smoothness parameter, as in Conselice et al. (2003)
 * <strong>SNpixel2 :</strong> S/N per pixel
+* <strong>SM_gini, SM_m20, SM_C, SM_A, SM_S, SM_SNpixel SM_Rpetro :</strong> Gini, M<sub>20</sub>, concentration, asymmetry, smoothness parameters, S/N per pixel and petrosian radius calculated with *statmorph* (https://statmorph.readthedocs.io/en/latest/) (Rodriguez-Gomez et al. 2019).
+* <strong>SM_flag :</strong> *statmorph* flag (0= good fit, 1= indicates a problem with the basic morphological measurements, such as a discontinuous Gini segmentation map).
 
 <br/><br/><br/>
 
