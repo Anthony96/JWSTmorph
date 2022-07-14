@@ -10,7 +10,18 @@ matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 To run the code simply type: <i> <font size="10"> python main_super_easy.py </i> </font> <br/>
 make_final_plots_results.py is for post-processing <br/><br/><br/>
 
-<strong>Output of the code </strong> (column name and brief description)  :
+<strong>Input of the code </strong> (user defined input parameters, to be modified directly in the main code)  :
+* <strong>segmap_detection_type :</strong> 'automatic' = automatically chooses the central segmentation region of the segmentation map to define the object (if nothing is detected in the central 10 pixel size box, an empty map is returned) ; 'indices' = the user should write for each galaxy the corresponding index in the segmentation map (in the file /data/galaxy_segmap_indices.txt), and then perform a first run to check the right index and update that file.
+* <strong>use_statmorph :</strong> True = also calculates the morphological parameters with the *statmorph* package (https://statmorph.readthedocs.io/en/latest/) (Rodriguez-Gomez et al. 2019). ; False = the program skips *statmorph* (-9 is returned for all the parameters starting with the prefix 'SM_' .
+* <strong>which_subset :</strong> write your favourite label to distinguish your subset of galaxies (the name of the subset is included in the name of final table saved).
+* <strong>segmentation_type :</strong> =  can be 'Pawlik' [DEFAULT] = the segmentation map is derived following Pawlik et al. (2016). Other possible choices are: 'petrosian_based', 'photutils', and 'square'.
+
+In the section 'INPUT CATALOG', the program looks for a catalog named *'assembled_catalog.cat'* in the data folder, which includes the list of galaxy IDs to process. Then it searches for fits images in the data folder with the following structure name:  *'ID_'+str(IDgal)+'_'+band+'.fits'*, where *IDgal* is an integer, and *band* is a string specifying the photometric band (can be 'f090w', 'f115w', 'f150w', 'f200w', 'f277w', 'f356w', or 'f444w').
+Image cutouts centered on each objects should be created with your favourite tool prior to running this program. In the example, image cutouts of 3'' box size are given for all the 7 different bands listed above.
+
+<br/><br/>
+
+<font size="+10"><strong>Output of the code </strong> (column name and brief description)  :</font>
 * <strong>c1 :</strong> clumpiness parameter, derived as explained in Calabrò et al. (2019) https://doi.org/10.1051/0004-6361/201935778 . No nucleus is removed in the calculation.
 * <strong>Rmax :</strong> maximum radius of the galaxy R<sub>max</sub>, following the definition of Pawlik et al. (2016)
 * <strong>gini :</strong> gini parameter, calculated following the definitions of Abraham et al. (2003) and Lotz et al. (2004)
@@ -20,7 +31,7 @@ make_final_plots_results.py is for post-processing <br/><br/><br/>
 * <strong>shapeasy :</strong> shape asymmetry, as defined in Pawlik et al. (2016)
 * <strong>S :</strong> smoothness parameter, as in Conselice et al. (2003)
 * <strong>SNpixel2 :</strong> S/N per pixel
-* <strong>SM_gini, SM_m20, SM_C, SM_A, SM_S, SM_SNpixel SM_Rpetro :</strong> Gini, M<sub>20</sub>, concentration, asymmetry, smoothness parameters, S/N per pixel and petrosian radius calculated with *statmorph* (https://statmorph.readthedocs.io/en/latest/) (Rodriguez-Gomez et al. 2019).
+* <strong>SM_gini, SM_m20, SM_C, SM_A, SM_S, SM_SNpixel SM_Rpetro :</strong> Gini, M<sub>20</sub>, concentration, asymmetry, smoothness parameters, S/N per pixel and petrosian radius calculated with *statmorph*.
 * <strong>SM_flag :</strong> *statmorph* flag (0= good fit, 1= indicates a problem with the basic morphological measurements, such as a discontinuous Gini segmentation map).
 
 <br/><br/><br/>
