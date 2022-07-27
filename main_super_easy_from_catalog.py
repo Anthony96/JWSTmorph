@@ -282,13 +282,14 @@ if calculate_parameters==True :
     _conv_kpc_to_arcsec=cosmo.arcsec_per_kpc_proper(redshift_source) # cosmology defined above
     conv_kpc_to_arcsec=_conv_kpc_to_arcsec.value
     
-    dd=np.where(IDxx==IDgal)[0]
-    #print(N1x)
-    N1_x=N1x[dd[0]]
-    N1_y=N1y[dd[0]]
-    N2_x=N2x[dd[0]]
-    N2_y=N2y[dd[0]] 
-    print('nuclei =',N1_x,N1_y,N2_x,N2_y)
+    if remove_nucleus==True :
+      dd=np.where(IDxx==IDgal)[0]
+      #print(N1x)
+      N1_x=N1x[dd[0]]
+      N1_y=N1y[dd[0]]
+      N2_x=N2x[dd[0]]
+      N2_y=N2y[dd[0]] 
+      print('nuclei =',N1_x,N1_y,N2_x,N2_y)
 
     # aperture mask
     size_square_source=size_square_source_all[iyy]
