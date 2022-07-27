@@ -28,7 +28,7 @@ Image cutouts centered on each objects should be created with your favourite too
 <br/><br/>
 
 <strong>Output of the code </strong> (column name and brief description) :
-* <strong>c1 :</strong> clumpiness parameter, derived as explained in Calabrò et al. (2019) https://doi.org/10.1051/0004-6361/201935778 . No nucleus is removed in the calculation.
+* <strong>c1 :</strong> clumpiness parameter, derived as explained in Calabrò et al. (2019) https://doi.org/10.1051/0004-6361/201935778 . The pixel coordinates of the galactic nuclei to remove should be specified in the file file_nuclei.txt . No nucleus is removed if the table contains all zeros.
 * <strong>Rmax :</strong> maximum radius of the galaxy R<sub>max</sub>, following the definition of Pawlik et al. (2016)
 * <strong>gini :</strong> gini parameter, calculated following the definitions of Abraham et al. (2003) and Lotz et al. (2004)
 * <strong>m20 :</strong> M<sub>20</sub> parameter, following the definition of Lotz et al. (2004)
