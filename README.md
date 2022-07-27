@@ -12,7 +12,7 @@ matplotlib,skimage,pandas,astLib,astropy,photutils,statmorph,scipy
 <strong>Instructions :</strong>
 To run the code simply type:  <br/> 
 ```diff
-python main_super_easy.py
+python main_super_easy_from_catalog.py
 ```
 <br/>
 
