@@ -164,8 +164,6 @@ import matplotlib.pyplot as plt
 import scipy,math,glob,random
 import pandas as pd
 
-from gauss_fit_routines import gaussian,moments,fitgaussian
-
 import skimage
 from skimage import data
 from skimage.morphology import disk
