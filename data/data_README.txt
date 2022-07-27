@@ -1,0 +1,1 @@
+Put here your images, already centered on the object. The image should be in the first fits extension, otherwise change the parameter *fits_extension_input_images* in the main folder, to 0, or higher than 1.
