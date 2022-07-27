@@ -361,7 +361,7 @@ if calculate_parameters==True :
 
       # DERIVE SEGMENTATION IMAGE 
       res=''
-      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,input_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_threshold)
+      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,output_folder_segmap,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_threshold)
       
 
       # RIGA PER CREARE SORGENTI SECONDARIE DA RIMPIAZZARE CON SYNTHETIC SKY ANCHE DOVE E' TUTTO ZERO (immagini tagliate etc ...)
