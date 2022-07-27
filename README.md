@@ -42,7 +42,7 @@ Image cutouts centered on each objects should be created with your favourite too
 
 <br/><br/><br/>
 
-<strong>Example of output images of a simulated clump configuration, as described in Treu, Calabrò, Castellano, et al. (2022) :</strong>
+<strong>Example of output images for a set of simulated clump configurations as described in Treu, Calabrò, Castellano, et al. (2022) :</strong>
 ![ID_400_distclumps_0.4_mag_27.0.png](https://github.com/Anthony96/JWSTmorph/blob/2cf8bf4613d1b1c55bb182015f4fff3d77edee78/results/ID_400_distclumps_0.4_mag_27.0.png)
 ![400_clumpmap_distclumps_0.4_mag_27.0.png](https://github.com/Anthony96/JWSTmorph/blob/2cf8bf4613d1b1c55bb182015f4fff3d77edee78/results/400_clumpmap_distclumps_0.4_mag_27.0.png)
 
