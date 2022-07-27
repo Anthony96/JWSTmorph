@@ -2475,7 +2475,7 @@ if calculate_parameters==True :
       m20_4_stamp=np.round(m20,2)
       concentration_4_stamp=np.round(concentration,2)
       shape_asymmetry_4_stamp=np.round(shape_asymmetry,2)
-      clumpiness_4_stamp=np.round(clumpiness_BB,2)
+      smoothness_4_stamp=np.round(smoothness22,2)
 
       # NOW WRITE RESULTS IN STAMPS :
       if make_images==True :
@@ -2485,7 +2485,7 @@ if calculate_parameters==True :
         axs[count_image].text(0.03, 0.1, r'M$_{20}$ ='+str(m20_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         axs[count_image].text(0.97, 0.3, 'C ='+str(concentration_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         axs[count_image].text(0.97, 0.2, r'A$_S$ ='+str(shape_asymmetry_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
-        axs[count_image].text(0.97, 0.1, r'CL ='+str(clumpiness_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
+        axs[count_image].text(0.97, 0.1, r'S ='+str(smoothness_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         count_image+=1
 
     # Indentation of this part is correct  !!!!
