@@ -1194,7 +1194,7 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
 
 # MAKE SEGMENTATION IMAGE 
 
-def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap) : 
+def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_thr) : 
   save_segmap=True
   deblend_segmap=True
 
@@ -1308,7 +1308,7 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
 
   elif segmentation_type=='photutils' :
     print('Photutils based segmentation')
-    firstsegmap_snr=2 ; firstsegmap_npixels=10  
+    firstsegmap_snr=detection_thr*1 ; firstsegmap_npixels=10  
 
     try : 
       threshold1 = photutils.detect_threshold(imagein, nsigma=firstsegmap_snr)
@@ -1357,7 +1357,7 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
   # pawlik based
 
   elif segmentation_type=='Pawlik' :
-    firstsegmap_snr=2 ; firstsegmap_npixels=5
+    firstsegmap_snr=detection_thr*1 ; firstsegmap_npixels=5
     #try :
     imagein_smoothed= ndi.uniform_filter(imagein, size=smoothradius_4segmap)
     threshold1 = photutils.detect_threshold(imagein_smoothed, nsigma=firstsegmap_snr)

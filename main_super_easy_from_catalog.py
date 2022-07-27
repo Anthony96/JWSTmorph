@@ -35,21 +35,27 @@ segmap_detection_type='automatic'  # automatic or indices (in the second case yo
 test_segmap_index=False  # Put True if you have to select the segmentation region of the galaxies
 use_statmorph=True
 make_images=False
-show_figures_clumps=False
+show_figures_clumps=True
 show_images_masks_smoothness=False
 remove_nucleus=True # You can also put a file nucleus with all zeros and it does not remove anything
 # N.B. If you are not interested in the clumpiness parameter, you can skip this step, just put a nuclei file with all zeros.
+
+fits_extension_input_images=1
 
 # SET THE PIXEL SCALE OF YOUR IMAGES 
 pixel_scale_SW=0.031 # arcsec/pixel   # Short wavelength channel (from F090W to F200W)
 pixel_scale_LW=0.031 # arcsec/pixel   # Long wavelength channel (from F277W to F444W)
 
 # HERE DEFINE HOW MANY BANDS YOU HAVE FOR EACH OBJECT (these can be modified, but be sure that these keywords appear in the filenames of the images)
-bande_all=['f090w','f115w','f150w','f200w','f277w','f356w','f444w']
-IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW,pixel_scale_LW]
-IDfwhm_banda=[0.034,0.040,0.050,0.066,0.091,0.115,0.145] # FWHM resolution in arcsec of your images ; For JWST they are taken from # Taken from https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-predicted-performance/nircam-point-spread-functions
+# bande_all=['f090w','f115w','f150w','f200w','f277w','f356w','f444w']
+# IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW,pixel_scale_LW]
+# IDfwhm_banda=[0.034,0.040,0.050,0.066,0.091,0.115,0.145] # FWHM resolution in arcsec of your images ; For JWST they are taken from # Taken from https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-predicted-performance/nircam-point-spread-functions
+bande_all=['f090w','f200w','f277w','f444w']
+IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW]
+IDfwhm_banda=[0.034,0.066,0.091,0.145] # FWHM resolutions
 
 segmentation_type='Pawlik'  #  'square', 'photutils', 'Pawlik'      # 'petrosian_based' or 'photutils' 
+detection_threshold=2.5 # 
 skybox_arcsec=0.5 ; # maximum skybox region for determining the asymmetry and smoothness of the background
 size_psf=5 # This is only used by statmorph
 
@@ -91,20 +97,26 @@ segmentation=True ; sigmasegm= 1.2 ; plotsNUC = False
 
 # Put all the images, catalog with ID and ascii table with the nuclei and the size of the central mask for the object
 input_folder=cwd+"data/"
-input_folder_catalog=cwd+"catalog/"
+input_folder_catalog=cwd+"catalogs/"
 output_folder=cwd+'results/'
 output_folder_segmap=cwd+'segmaps/'
 filenameoutput=output_folder+"results_subset_"+which_subset+".txt"
 
-  # IMPORTING APERTURE MASKS
-  table_apertures=np.genfromtxt(input_folder_catalog+file_apertures,names=True,dtype=None)
-  size_square_source_all=table_apertures['size']
-  ID_size_all=table_apertures['ID']
+## IMPORTING APERTURE MASKS
+#table_apertures=np.genfromtxt(input_folder_catalog+file_apertures,names=True,dtype=None)
+#size_square_source_all=table_apertures['size']
+#ID_size_all=table_apertures['ID']
+
+
+# Per momento fai un catalogo cosi : (il redshift e' sempre 6 !!!!)
+# ID redshift size
+
+# Facciamo che pure la size la dai in arcosecondi ? O comunque in pixel ??
+
 
 
 if ID_list=='catalog' :
-  file_catalog=input_folder_catalog+"subset1_catalog.txt" # there should be at least a column with ID, redshift, size
-  file_apertures='subset1_boxsize.txt'
+  file_catalog=input_folder_catalog+"assembled_catalog.dat" # there should be at least a column with ID, redshift, size
   table_catalog=np.genfromtxt(file_catalog,names=True,dtype=None)
   IDobj_all=table_catalog['ID'] # ; ra_all=table_catalog['RA'] ; dec_all=table_catalog['DEC']
   redshift_all=table_catalog['redshift']
@@ -266,8 +278,8 @@ if calculate_parameters==True :
     time.sleep(sleep_time)
     count_image=0
 
-    redshift_source=redshift_all[ikk]
-    _conv_kpc_to_arcsec=cosmo.arcsec_per_kpc_proper(redshift) # cosmology defined above
+    redshift_source=redshift_all[iyy]
+    _conv_kpc_to_arcsec=cosmo.arcsec_per_kpc_proper(redshift_source) # cosmology defined above
     conv_kpc_to_arcsec=_conv_kpc_to_arcsec.value
     
     dd=np.where(IDxx==IDgal)[0]
@@ -280,7 +292,7 @@ if calculate_parameters==True :
 
     # aperture mask
     size_square_source=size_square_source_all[iyy]
-    print('\nsize square source =',size_square_source)
+    print('size square source =',size_square_source)
 
 
     # INITIALIZE FIGURE :::
@@ -309,12 +321,15 @@ if calculate_parameters==True :
       smoothradiusX22=round(1*conv_kpc_to_arcsec/IDpixscale_banda)  # per smoothness and clumpiness
       smoothradius_4segmap=round(1*conv_kpc_to_arcsec/IDpixscale_banda)  # per smoothness and clumpiness
       print('smoothradius for segmap =',smoothradius_4segmap)
-
-      IDnamefile=input_folder+'ID_'+str(IDgal)+'_'+banda_obj+'.fits' # write image filenames in the same format
-
+      
+      print('Opening file')
+      print(input_folder+'ID_'+str(int(IDgal))+'_'+banda_obj+'.fits')
+      IDnamefile=input_folder+'ID_'+str(int(IDgal))+'_'+banda_obj+'.fits' # write image filenames in the same format
+      
+      # /Users/acalabro/Sync/morphology_GLASS/3_GitHub_repository_ONLINE/data
       img=fits.open(IDnamefile)
-      imagein=img[0].data # Remember that primary header is empty
-      header=img[0].header 
+      imagein=img[fits_extension_input_images].data # Remember that primary header is empty
+      header=img[fits_extension_input_images].header 
       #WCS=astWCS.WCS(header, mode = "fits")
       print('Image shape =',imagein.shape)
       
@@ -345,7 +360,8 @@ if calculate_parameters==True :
       
 
       # DERIVE SEGMENTATION IMAGE 
-      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,input_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap)
+      res=''
+      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,input_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_threshold)
       
 
       # RIGA PER CREARE SORGENTI SECONDARIE DA RIMPIAZZARE CON SYNTHETIC SKY ANCHE DOVE E' TUTTO ZERO (immagini tagliate etc ...)
@@ -682,7 +698,7 @@ if calculate_parameters==True :
 
       if calculate_Rmax==True :
         try :
-          firstsegmap_snr=2 ; firstsegmap_npixels=5   
+          firstsegmap_snr=detection_threshold*1 ; firstsegmap_npixels=5   
           threshold1 = photutils.detect_threshold(imagein, nsigma=firstsegmap_snr)
       
           npixelsV = firstsegmap_npixels*1  # minimum number of connected pixels
@@ -2578,8 +2594,6 @@ if calculate_parameters==True :
   # FINE storing IDgal, clumpiness and clumps number into a table         #
   #########################################################################
   
-  #print('OK JOOO')
-  #quit()
   print('OK GOOOD\n')
   #quit()
     
