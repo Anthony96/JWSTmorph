@@ -42,7 +42,8 @@ Image cutouts centered on each objects should be created with your favourite too
 
 <br/><br/><br/>
 
-<strong>Example of output images (Galaxy ID 104, band F090W) :</strong>
-![ID_104_band_f090w_ok](https://user-images.githubusercontent.com/12728781/178595197-63f5971b-51e8-43c5-960f-f278e7245674.png)
-![104_clumpmap_band_f090w](https://user-images.githubusercontent.com/12728781/178595024-9d1030fe-c87a-4061-befe-66da95611c0a.png)
+<strong>Example of output images of a simulated clump configuration, as described in Treu, Calabrò, Castellano, et al. (2022) :</strong>
+%![ID_104_band_f090w_ok](https://user-images.githubusercontent.com/12728781/178595197-63f5971b-51e8-43c5-960f-f278e7245674.png)
+%![104_clumpmap_band_f090w](https://user-images.githubusercontent.com/12728781/178595024-9d1030fe-c87a-4061-befe-66da95611c0a.png)
+%![400_clumpmap_distclumps_0 4_mag_27 0](https://user-images.githubusercontent.com/12728781/181287923-994d26b4-e5d3-4989-9b6b-5ee612b1e92e.png)
 
