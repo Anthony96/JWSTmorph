@@ -47,4 +47,4 @@ Image cutouts centered on each objects should be created with your favourite too
 ![400_clumpmap_distclumps_0.4_mag_27.0.png](https://github.com/Anthony96/JWSTmorph/blob/2cf8bf4613d1b1c55bb182015f4fff3d77edee78/results/400_clumpmap_distclumps_0.4_mag_27.0.png)
 
 The latter figure is a composition of 6 simulated images for the same configuration in different filters (F090W, F200W, F277W, F444W), including also F090W and F277W bands, convolved respectively to the psf resolution of F200W and F444W. All the stamps are 2'' on a side. 
-![image_cutouts_1_distclumps_0.2_mag_27.0](https://github.com/Anthony96/JWSTmorph/blob/2cf8bf4613d1b1c55bb182015f4fff3d77edee78/results/image_cutouts_1_distclumps_0.2_mag_27.0.png)
+![image_cutouts_1_distclumps_0.2_mag_27.0](https://github.com/Anthony96/JWSTmorph/blob/87e2e9940e5fabee68811f2b4056932b56f04ff6/results/image_cutouts_1_distclumps_0.2_mag_27.0.png)
