@@ -105,32 +105,32 @@ def replace_secondary_sources_with_bkg(imagein33,maskgoodsource,segmentation_all
   show_initial_images=False
 
   # Create mask of secondary sources
-  inverse_maskgoodsource=np.absolute(maskgoodsource-1)
-  segmentation_all33[segmentation_all33>0.5]=1
-  mask_secondary_sources=segmentation_all33*inverse_maskgoodsource
-  inverse_segmentationall=np.absolute(segmentation_all33-1)
 
-  flux_bkg_1Darray=imagein33[segmentation_all33==0]
-  mean_guess3 = np.mean(flux_bkg_1Darray)
-  std_guess3 = np.std(flux_bkg_1Darray)
-  area_guess3 = np.sum(flux_bkg_1Darray)
-  entries3, bin_edges3 = np.histogram(flux_bkg_1Darray, range=[min(flux_bkg_1Darray), max(flux_bkg_1Darray)], bins=100,density=True)  # range=[limitsbkg[0], limitsbkg[1]]
-  # calculate binmiddles
-  bin_middles3 = 0.5*(bin_edges3[1:] + bin_edges3[:-1])
-  width3 = 0.8*(bin_edges3[1]-bin_edges3[0])
-  # FIT NORMAL :
-  norm_opt33, _ = curve_fit(fit_gauss, bin_middles3, entries3, p0=[mean_guess3,std_guess3,area_guess3])
-  mean_opt33=norm_opt33[0] ; std_opt33=norm_opt33[1]
-  print('Fitted mean and std (gaussian noise bkg) =',mean_opt33,std_opt33)
-  synthetic_noise=make_noise_image(imagein33.shape, distribution='gaussian',mean=mean_opt33, stddev=std_opt33)
-
-
-  good_source=imagein33*maskgoodsource
-  secondary_sources_replaced=mask_secondary_sources*synthetic_noise
-  background33=imagein33*inverse_segmentationall
-
-  final_image33=good_source+secondary_sources_replaced+background33  
-
+  try :
+    inverse_maskgoodsource=np.absolute(maskgoodsource-1)
+    segmentation_all33[segmentation_all33>0.5]=1
+    mask_secondary_sources=segmentation_all33*inverse_maskgoodsource
+    inverse_segmentationall=np.absolute(segmentation_all33-1)
+    flux_bkg_1Darray=imagein33[segmentation_all33==0]
+    mean_guess3 = np.mean(flux_bkg_1Darray)
+    std_guess3 = np.std(flux_bkg_1Darray)
+    area_guess3 = np.sum(flux_bkg_1Darray)
+    entries3, bin_edges3 = np.histogram(flux_bkg_1Darray, range=[min(flux_bkg_1Darray), max(flux_bkg_1Darray)], bins=100,density=True)  # range=[limitsbkg[0], limitsbkg[1]]
+    # calculate binmiddles
+    bin_middles3 = 0.5*(bin_edges3[1:] + bin_edges3[:-1])
+    width3 = 0.8*(bin_edges3[1]-bin_edges3[0])
+    # FIT NORMAL :
+    norm_opt33, _ = curve_fit(fit_gauss, bin_middles3, entries3, p0=[mean_guess3,std_guess3,area_guess3])
+    mean_opt33=norm_opt33[0] ; std_opt33=norm_opt33[1]
+    print('Fitted mean and std (gaussian noise bkg) =',mean_opt33,std_opt33)
+    synthetic_noise=make_noise_image(imagein33.shape, distribution='gaussian',mean=mean_opt33, stddev=std_opt33)
+    good_source=imagein33*maskgoodsource
+    secondary_sources_replaced=mask_secondary_sources*synthetic_noise
+    background33=imagein33*inverse_segmentationall
+    final_image33=good_source+secondary_sources_replaced+background33  
+  except :
+    final_image33=imagein33*1
+    
   if show_initial_images==True :
     f, ((ax1, ax2, ax3), (ax4, ax5,ax6)) = plt.subplots(2,3, sharey=True, sharex=True)
     imagestat1=calc_bg(imagein33)
@@ -163,7 +163,6 @@ def replace_secondary_sources_with_bkg(imagein33,maskgoodsource,segmentation_all
     plt.subplots_adjust(wspace=0.2, hspace=0.01)
     #plt.tight_layout()
     #plt.show()
-
   if check_fit_noise==True :
     plt.bar(bin_middles, entries, align='center', width=width, label = 'Normalised data Gauss', alpha=0.5,color='salmon')
     plt.plot(bin_middles, fit_gauss(bin_middles, *norm_opt33), color='red',ls='dashed', label='Normal fit')
@@ -759,7 +758,7 @@ def minimize_mu(image_enter,xcenterA,ycenterA) :
           flussoT=[]  ; coordinateT=[]
           for pt in np.arange(image_enter.shape[0]) : 
               for pw in np.arange(image_enter.shape[1]) :
-                if (image_enter[pw,pt]>0) : 
+                if (image_enter[pw,pt]!=0) : 
                   flussoT.append(image_enter[pw,pt])
                   quantity00=(pt-rt)**2+(pw-rw)**2
                   coordinateT.append(quantity00)
@@ -783,7 +782,7 @@ def M20_simple(image_enterB,x_center_mm,y_center_mm) :
   flusso_totale=sum(image_enterB.ravel())
   for ptb in np.arange(image_enterB.shape[0]) : 
       for pwb in np.arange(image_enterB.shape[1]) :
-        if (image_enterB[pwb,ptb]>0) : 
+        if (image_enterB[pwb,ptb]!=0) : 
           flussoTb.append(image_enterB[pwb,ptb])
           quantity00b=(ptb-x_center_mm)**2+(pwb-y_center_mm)**2
           coordinateTb.append(quantity00b)
@@ -808,7 +807,8 @@ def M20_simple(image_enterB,x_center_mm,y_center_mm) :
       if parzialiX>=0.2 : 
           index_ok=ppp*1
           break
-  mu_calculated=sum(momenti[0:index_ok])
+  try : mu_calculated=sum(momenti[0:index_ok])
+  except : mu_calculated=[-9]
   mu_calculated=mu_calculated[0]
   return mu_calculated
 
@@ -1194,9 +1194,11 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
 
 # MAKE SEGMENTATION IMAGE 
 
-def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index) : 
+def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap) : 
   save_segmap=True
-  deblend_segmap=False
+  deblend_segmap=True
+
+  # pawlik based
 
   # maskgood definition
   if segmentation_type=='petrosian_based' : # Dovrebbe essere Rmax based magari, non Petrosian based
@@ -1351,84 +1353,118 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
     # Qui però il problema sta nell'isolare solo l'oggetto centrale !!!!
 
   # ----------------------------------------------------------------------------------
+  
+  # pawlik based
 
   elif segmentation_type=='Pawlik' :
-    firstsegmap_snr=2 ; firstsegmap_npixels=10
+    firstsegmap_snr=2 ; firstsegmap_npixels=5
     #try :
-    imagein_smoothed= ndi.uniform_filter(imagein, size=3)
+    imagein_smoothed= ndi.uniform_filter(imagein, size=smoothradius_4segmap)
     threshold1 = photutils.detect_threshold(imagein_smoothed, nsigma=firstsegmap_snr)
     segm1 = photutils.detect_sources(imagein_smoothed, threshold1, firstsegmap_npixels)
     #plt.imshow(segm1.data)
+    #print('segm1 =',segm1)
     #plt.show()
-    if np.sum(segm1.data)==0 :
+    
+    
+    try :
+      if ( (np.sum(segm1.data)==0) ) :
+        maskgood=np.zeros(imagein.shape)
+        binary_pawlik_4=maskgood*1
+        binary_pawlik_4_complete=maskgood*1
+        segmap_final=maskgood*1
+      else :
+        # CALCULATE STATISTICS ON BACKGROUND ALL (mi serve per le simulazioni)
+        background_all1 = segm1.data < 0.5
+        #print('Created segmap, now convert bool to int')
+        background_all1=1*background_all1
+        image_bkg1=imagein_smoothed*background_all1
+        background_only=image_bkg1[background_all1>0]
+        imagestatS=calc_bg(background_only)
+        backS=imagestatS[0]   #'background'
+        sigmabackS=imagestatS[1]
+        print('back and sigma =',backS,sigmabackS)
+        # Riapplica, stavolta con un background migliorato
+        threshold2 = backS + (2.0 * sigmabackS)
+        segmV = photutils.detect_sources(imagein_smoothed, threshold1, firstsegmap_npixels)
+        imagein_smoothed_skysub=imagein_smoothed-np.ones(imagein_smoothed.shape)*backS
+        imagein_smoothed_skysub_debl=photutils.deblend_sources(imagein_smoothed, segmV, firstsegmap_npixels, kernel=None, labels=None, nlevels=16, contrast=0.001, mode='linear', connectivity=8, relabel=True) # mode exponential or linear , nlevels=32 default
+        # Save this segmentation image :
+        if deblend_segmap==False :
+          if res != '' : segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm_'+res+'.fits'
+          else : segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm.fits'
+          if save_segmap==True :
+            astImages.saveFITS(segmap_filename,segmV)
+          print('Saved segmentation map in '+segmap_filename)
+          segmap_final=segmV.data
+        elif deblend_segmap==True :
+          if res != '' : segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm_'+res+'.fits'
+          else : segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm.fits'
+          if save_segmap==True :
+            astImages.saveFITS(segmap_filename,imagein_smoothed_skysub_debl)
+          print('Saved segmentation map in '+segmap_filename)
+          segmap_final=imagein_smoothed_skysub_debl.data
+        segmap_final_ones=segmap_final*1
+        maskgood=segmap_final*1 
+        segmap_final_ones[segmap_final_ones>0]=1
+        binary_pawlik_4_complete=segmap_final_ones*1
+        if segmap_detection=='automatic' :
+          allow_multi_regions=True # Looking for multiple segmentation regions inside a box size defined in running x (currently is 5 pixels distance from the center, i.e., 10 pixels box size)
+        	# Look for the segmentation region closest to the center :
+          # Default is better to be False
+          # CHANGE THIS PART TO ALLOW A LARGER SQUARE
+          if allow_multi_regions==True :
+            center_x=round(maskgood.shape[0]/2)
+            center_y=round(maskgood.shape[1]/2)
+            running_x=np.arange(center_x-round(size_square_source/2),center_x+round(size_square_source/2)+1,1)
+            running_y=np.arange(center_y-round(size_square_source/2),center_y+round(size_square_source/2)+1,1)
+          else :
+            center_x=round(maskgood.shape[0]/2)
+            running_x=[center_x,center_x-1,center_x+1,center_x-2,center_x+2,center_x-3,center_x+3,center_x-4,center_x+4,center_x-5,center_x+5,center_x-6,center_x+6,center_x-7,center_x+7,center_x-8,center_x+8]
+            center_y=round(maskgood.shape[1]/2)
+            running_y=[center_y,center_y-1,center_y+1,center_y-2,center_y+2,center_y-3,center_y+3,center_y-4,center_y+4,center_y-5,center_y+5,center_y-6,center_y+6,center_y-7,center_y+7,center_y-8,center_y+8]
+          #while True:
+          indice_centrale_all=[] ; found=0
+          for tj in running_x :
+              for th in running_y :
+                indice_centrale=maskgood[th,tj]
+                if indice_centrale>0 : 
+                  found=1
+                  # Se indice_centrale > 0 significa che li ha detectato qualcosa
+                  #print('indice centrale =',indice_centrale)
+                  indice_centrale_all.append(indice_centrale)
+                  #break
+          if found==1 :
+            if allow_multi_regions==True:
+              indice_set=list(set(indice_centrale_all)) 
+            else :
+              indice_set=[indice_centrale_all[0]] # Take simply the first found
+            print('indice set =',indice_set)
+            how_many_indices=max(np.ravel(maskgood))
+            print('maximum maskgood index =',how_many_indices)
+            indice_list_whole_image=np.arange(1,how_many_indices+1,1)
+            for indicex in indice_list_whole_image :
+              if indicex in indice_set :
+                #maskgood[maskgood!=indice_centrale]=0
+                maskgood[maskgood==indicex]=1
+              else :
+                maskgood[maskgood==indicex]=0
+                #if indice_centrale>0 :  
+          else :
+            maskgood=maskgood*0
+          binary_pawlik_4=maskgood*1
+        else :
+          maskgood[maskgood!=galaxy_index]=0
+          maskgood[maskgood==galaxy_index]=1
+          binary_pawlik_4=maskgood*1
+          segmap_final=maskgood*1
+          print('Be careful perche non lo sto controllando piu se funziona cosi')
+    except :
       maskgood=np.zeros(imagein.shape)
       binary_pawlik_4=maskgood*1
       binary_pawlik_4_complete=maskgood*1
-    else :
-      # CALCULATE STATISTICS ON BACKGROUND ALL (mi serve per le simulazioni)
-      background_all1 = segm1.data < 0.5
-      #print('Created segmap, now convert bool to int')
-      background_all1=1*background_all1
-      image_bkg1=imagein_smoothed*background_all1
-      background_only=image_bkg1[background_all1>0]
-      imagestatS=calc_bg(background_only)
-      backS=imagestatS[0]   #'background'
-      sigmabackS=imagestatS[1]
-      print('back and sigma =',backS,sigmabackS)
-      # Riapplica, stavolta con un background migliorato
-      threshold2 = backS + (2.0 * sigmabackS)
-      segmV = photutils.detect_sources(imagein_smoothed, threshold1, firstsegmap_npixels)
-      imagein_smoothed_skysub=imagein_smoothed-np.ones(imagein_smoothed.shape)*backS
-      imagein_smoothed_skysub_debl=photutils.deblend_sources(imagein_smoothed, segmV, firstsegmap_npixels, kernel=None, labels=None, nlevels=32, contrast=0.001, mode='exponential', connectivity=8, relabel=True)
+      segmap_final=maskgood*1
 
-      # Save this segmentation image :
-
-      if deblend_segmap==True :
-        segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm.fits'
-        if save_segmap==True :
-          astImages.saveFITS(segmap_filename,segmV)
-        print('Saved segmentation map in '+segmap_filename)
-        segmap_final=segmV.data
-      else :
-        segmap_filename=input_images_folder+'ID_'+str(IDgal)+'_'+banda_obj+'_segm.fits'
-        if save_segmap==True :
-          astImages.saveFITS(segmap_filename,imagein_smoothed_skysub_debl)
-        print('Saved segmentation map in '+segmap_filename)
-        segmap_final=imagein_smoothed_skysub_debl.data
-      
-      segmap_final_ones=segmap_final*1
-      maskgood=segmap_final*1 
-      segmap_final_ones[segmap_final_ones>0]=1
-      binary_pawlik_4_complete=segmap_final_ones*1
-
-      if segmap_detection=='automatic' :
-      	# Look for the segmentation region closest to the center :
-        
-        center_x=round(maskgood.shape[0]/2)
-        running_x=[center_x,center_x-1,center_x+1,center_x-2,center_x+2]
-        center_y=round(maskgood.shape[1]/2)
-        running_y=[center_y,center_y-1,center_y+1,center_y-2,center_y+2]
-        
-        #while True:
-        indice_centrale=0
-        for tj in running_x :
-            for th in running_y :
-              indice_centrale=maskgood[tj,th]
-              if indice_centrale>0 :
-                print('indice centrale =',indice_centrale)
-                break
-
-        if indice_centrale>0 :
-          maskgood[maskgood!=indice_centrale]=0
-          maskgood[maskgood==indice_centrale]=1
-        else :
-          maskgood=maskgood*0
-        binary_pawlik_4=maskgood*1
-
-      else :
-        maskgood[maskgood!=galaxy_index]=0
-        maskgood[maskgood==galaxy_index]=1
-        binary_pawlik_4=maskgood*1
 
   else :
     print('Problem with segmentation - Exit')
