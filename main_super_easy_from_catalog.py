@@ -278,7 +278,7 @@ if calculate_parameters==True :
     time.sleep(sleep_time)
     count_image=0
 
-    redshift_source=redshift_all[iyy]
+    redshift_source=6  # redshift_all[iyy]
     _conv_kpc_to_arcsec=cosmo.arcsec_per_kpc_proper(redshift_source) # cosmology defined above
     conv_kpc_to_arcsec=_conv_kpc_to_arcsec.value
     
