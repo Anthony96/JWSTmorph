@@ -13,16 +13,19 @@ __email__ = "antonello.calabro@inaf.it"
 __status__ = "Production"
 ###################################################################
 
-which_subset='TEST_jwst'    # it's just a name that you give to distinguish among different subsets
+which_subset='TEST'    # it's just a name that you give to distinguish among different subsets
 
 # INPUT CATALOG, INPUT AND OUTPUT FOLDERS
 # START PROGRAM AND LOOP ON IMAGES  
+# TEST ONE OBJECT
 
 # To convert to 'from_image_list' you need essentially to update two main parts 
 
 calculate_parameters=True # Default is True
 import os,sys,time,glob
 import numpy as np
+import pandas as pd
+import bz2
 sleep_time=0.01
 cwd=os.getcwd()+'/'
 
@@ -32,30 +35,29 @@ cwd=os.getcwd()+'/'
 
 ID_list='catalog'      # 'catalog' or 'automatic'
 segmap_detection_type='automatic'  # automatic or indices (in the second case you have to write all the indices of the segmentation region corresponding to the galaxy itself)
+deblend_segmap=False     # If you want to deblend the initial segmentation map for source identification
 test_segmap_index=False  # Put True if you have to select the segmentation region of the galaxies
-use_statmorph=True
-make_images=False
-show_figures_clumps=True
+use_statmorph=False
+make_images=True
+show_figures_clumps=False
 show_images_masks_smoothness=False
-remove_nucleus=True # You can also put a file nucleus with all zeros and it does not remove anything
+remove_nucleus=False # You can also put a file nucleus with all zeros and it does not remove anything
 # N.B. If you are not interested in the clumpiness parameter, you can skip this step, just put a nuclei file with all zeros.
 
-fits_extension_input_images=1
+fits_extension_input_images=0
 
 # SET THE PIXEL SCALE OF YOUR IMAGES 
 pixel_scale_SW=0.031 # arcsec/pixel   # Short wavelength channel (from F090W to F200W)
 pixel_scale_LW=0.031 # arcsec/pixel   # Long wavelength channel (from F277W to F444W)
 
 # HERE DEFINE HOW MANY BANDS YOU HAVE FOR EACH OBJECT (these can be modified, but be sure that these keywords appear in the filenames of the images)
-# bande_all=['f090w','f115w','f150w','f200w','f277w','f356w','f444w']
-# IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW,pixel_scale_LW]
-# IDfwhm_banda=[0.034,0.040,0.050,0.066,0.091,0.115,0.145] # FWHM resolution in arcsec of your images ; For JWST they are taken from # Taken from https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-predicted-performance/nircam-point-spread-functions
-bande_all=['f090w','f200w','f277w','f444w']
-IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW]
-IDfwhm_banda=[0.034,0.066,0.091,0.145] # FWHM resolutions
+bande_all=['f090w','f115w','f150w','f200w','f277w','f356w','f444w']
+IDpixscale=[pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_SW,pixel_scale_LW,pixel_scale_LW,pixel_scale_LW]
+IDfwhm_banda=[0.034,0.040,0.050,0.066,0.091,0.115,0.145] # FWHM resolution in arcsec of your images ; For JWST they are taken from # Taken from https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-predicted-performance/nircam-point-spread-functions
+#bande_all=['f090w','f200w','f277w','f444w']
 
-segmentation_type='Pawlik'  #  'square', 'photutils', 'Pawlik'      # 'petrosian_based' or 'photutils' 
-detection_threshold=2.5 # 
+segmentation_type='photutils'  #  'square', 'photutils', 'Pawlik'  (for now use just Pawlik or photutils)  # 'petrosian_based' or 'photutils' 
+detection_threshold=3 # 
 skybox_arcsec=0.5 ; # maximum skybox region for determining the asymmetry and smoothness of the background
 size_psf=5 # This is only used by statmorph
 
@@ -96,9 +98,11 @@ segmentation=True ; sigmasegm= 1.2 ; plotsNUC = False
 # __*******************************************************************************__
 
 # Put all the images, catalog with ID and ascii table with the nuclei and the size of the central mask for the object
-input_folder=cwd+"data/"
+input_folder=cwd+"data/"   # for jwst
+#input_folder=cwd+"data_sdss/"  # for sdss
 input_folder_catalog=cwd+"catalogs/"
-output_folder=cwd+'results/'
+output_folder=cwd+'results/' # for jwst
+#output_folder=cwd+'results_sdss/' # for sdss
 output_folder_segmap=cwd+'segmaps/'
 filenameoutput=output_folder+"results_subset_"+which_subset+".txt"
 
@@ -110,10 +114,7 @@ filenameoutput=output_folder+"results_subset_"+which_subset+".txt"
 
 # Per momento fai un catalogo cosi : (il redshift e' sempre 6 !!!!)
 # ID redshift size
-
 # Facciamo che pure la size la dai in arcosecondi ? O comunque in pixel ??
-
-
 
 if ID_list=='catalog' :
   file_catalog=input_folder_catalog+"assembled_catalog.dat" # there should be at least a column with ID, redshift, size
@@ -137,6 +138,22 @@ else :
   all_images=sorted(all_images_x)
   IDlista=np.arange(len(all_images))
   for tt in all_images : print(tt)
+# If you want to test just one galaxies
+#  special_cases=np.where(ID_all == 6388)[0]
+#  ID_all=np.take(ID_all,special_cases)
+#  redshift_all=np.take(redshift_all,special_cases)
+#  size_square_source_all=np.take(size_square_source_all,special_cases)
+#  IDlista=ID_all*1
+#  IDobj_all=ID_all*1 
+
+
+# If you want to define new
+#IDlista=IDlista[2:6]
+#IDobj_all=IDlista*1
+#redshift_all=redshift_all[2:6]
+#size_square_source_all=size_square_source_all[2:6]
+
+#- ----------------------------------------------------------------------------
 
 # OPEN GALAXY INDICES SEGMENTATION MAPS : 
 # IN_catalog=input_folder+"galaxy_segmap_indices.txt"
@@ -152,17 +169,18 @@ replace_secondary_sources=True
 calculate_Rmax=True
 calculate_smoothness=True
 calculate_asymmetry_center=True # contains also asymmetry calculation
-calculate_shape_asymmetry_easier=True
+calculate_shape_asymmetry_easier_1=True
 calculate_concentration=True
 calculate_gini=True
 calculate_m20=True
-calculate_clumpiness=True
+calculate_clumpiness=False
 calculate_shape_asymmetry_old=False
 calculate_asymmetry_oldstyle=False 
 calculate_m20_oldstyle=False
 show_figures=False
 show_figures_Gini=False
 show_image_shape_asymmetry=False
+calculate_shape_asymmetry_easier_0=False 
 plot_asymmetry=False
 
 # ---------------- ---------------- ---------------- -------------- -------------
@@ -267,21 +285,25 @@ if calculate_parameters==True :
   counter989=0
   
   # START LOOP ON IMAGES 
-
-  #for iyy in lista_immagini_ID :  # THIS IS FOR FIGURES OF 6 in a row !!!!!
+  f988 = open(output_folder+"writelines_parameters_"+which_subset+".txt", "w")
+  f988.writelines("ID band c1 Rmax gini m20 C A1 Axc Ayc shapeasy S SNpixel1 SNpixel2 area \n")
+  
+  #######for iyy in lista_immagini_ID :  # THIS IS FOR FIGURES OF 6 in a row !!!!!
   for iyy in np.arange(len(IDlista)) :  # So I do them all
-  #for iyy in [2,3] :
-    
+  #for iyy in [0,1] :
+  
+    # --------------------
     IDgal=IDlista[iyy]
     print('\n\n\nID-image =',IDgal)
     print('processing ID-image '+str(iyy)+' ... ID = '+str(IDgal))
+    #quit()
     time.sleep(sleep_time)
     count_image=0
-
-    redshift_source=6  # redshift_all[iyy]
+    # --------------------
+    redshift_source=redshift_all[iyy]
     _conv_kpc_to_arcsec=cosmo.arcsec_per_kpc_proper(redshift_source) # cosmology defined above
     conv_kpc_to_arcsec=_conv_kpc_to_arcsec.value
-    
+    # --------------------
     if remove_nucleus==True :
       dd=np.where(IDxx==IDgal)[0]
       #print(N1x)
@@ -290,105 +312,129 @@ if calculate_parameters==True :
       N2_x=N2x[dd[0]]
       N2_y=N2y[dd[0]] 
       print('nuclei =',N1_x,N1_y,N2_x,N2_y)
-
+    # --------------------
     # aperture mask
     size_square_source=size_square_source_all[iyy]
     print('size square source =',size_square_source)
-
-
     # INITIALIZE FIGURE :::
     if ( (test_segmap_index == False) & (make_images==True)) :
-      fig66, ((axs)) = plt.subplots(1, 6, figsize=(18,3)) # , sharex=True) sharey=True,
-
+      fig66, ((axs)) = plt.subplots(1, 7, figsize=(21,3)) # , sharex=True) sharey=True,
+    # ----------------------
+    # ----------------------
     for jkk in np.arange(len(bande_all)) :
-    #for jkk in [1,2] :
-      
+      #for jkk in [1,2] :
+      # --------------------
       # This is needed only if importing segmentation index
       # IDH=np.where(indices_catalog['ID']==IDgal)[0]
       # galaxy_index_7=indices_catalog['index'][IDH] # The segmentation region of the galaxy
       # galaxy_index=galaxy_index_7[jkk]
       # print('galaxy index =',galaxy_index)
-      #quit()
       galaxy_index=1
-
-      counter989+=1
+      # --------------------------------------------
+      #if iyy%5==0 : banda_obj='g' ; jkk=0
+      #elif iyy%5==1 : banda_obj='i' ; jkk=1
+      #elif iyy%5==2 : banda_obj='r' ; jkk=2
+      #elif iyy%5==3 : banda_obj='u' ; jkk=3
+      #elif iyy%5==4 : banda_obj='z' ; jkk=4
+      #else : print('Error bands') ; quit()
       banda_obj=bande_all[jkk]
       banda_obj_index=jkk*1
       IDpixscale_banda=IDpixscale[jkk]
-
+      # --------------------------------------------
       print('\n\nLooking at band '+banda_obj)
       print('Open original image, segmentation map, and mask for the same galaxy')
-
+      # --------------------------------------------
       smoothradiusX22=round(1*conv_kpc_to_arcsec/IDpixscale_banda)  # per smoothness and clumpiness
       smoothradius_4segmap=round(1*conv_kpc_to_arcsec/IDpixscale_banda)  # per smoothness and clumpiness
       print('smoothradius for segmap =',smoothradius_4segmap)
-      
+      #print('arcsec to kpc =',100*conv_kpc_to_arcsec)
+      # --------------------------------------------      
       print('Opening file')
-      print(input_folder+'ID_'+str(int(IDgal))+'_'+banda_obj+'.fits')
-      IDnamefile=input_folder+'ID_'+str(int(IDgal))+'_'+banda_obj+'.fits' # write image filenames in the same format
-      
+      #print(input_folder+'ID_'+str(int(IDgal))+'_'+banda_obj+'.fits')
+      IDnamefile=input_folder+str(int(IDgal))+'_'+banda_obj+'.fits' # write image filenames in the same format
+      #
       # /Users/acalabro/Sync/morphology_GLASS/3_GitHub_repository_ONLINE/data
-      img=fits.open(IDnamefile)
+      #decompressed_file = bz2.BZ2File(input_folder+all_images[iyy])
+      try :
+        #decompressed_file = bz2.BZ2File(all_images[iyy])
+        #figure_band_00=fits.open(decompressed_file)
+        #img=fits.open(decompressed_file)
+        img=fits.open(IDnamefile)
+      except :
+        continue
+      # --------------------------------------------
+      counter989+=1
       imagein=img[fits_extension_input_images].data # Remember that primary header is empty
       header=img[fits_extension_input_images].header 
       #WCS=astWCS.WCS(header, mode = "fits")
       print('Image shape =',imagein.shape)
-      
+      # --------------------------------------------
+      # Le immagini sono troppo grandi cosi !!!!
+      # 250 x 0.4 arcosecondi !!!! Sono 100 arcosecondi, e' un botto
+      #ap=60
+      #imagein=imagein[128-ap:128+ap,128-ap:128+ap]
+      #print('new shape =',imagein.shape)
+      #quit()
+      #
       # *****************************************************************************
       # Define segmentation images and masks
       # *****************************************************************************
-    
+      #
       segmap=np.ones(imagein.shape)
       # Here create maskgood nel caso in cui volessi applicare una maschera all'oggetto (per ora nessuna segmentation map !!!)
       positions = (imagein.shape[0]/2, imagein.shape[1]/2)
       # Estimate background first : 
       aperture_arcsec=0.3 ; aperture_bkg1=0.5 ; aperture_bkg2=0.8
-  
-
-
+      # --------------------------------------------
+      #
+      #
       # PLOT IMAGES ( in case you decide to have a figure) :
       if ( (make_images==True) & (test_segmap_index==False) ) :
         #ax1=subpanels[count_image]
         imagestat1=calc_bg(imagein)
         back1=imagestat1[0]   #'background'
         sigmaback1=imagestat1[1]
-        norm1=matplotlib.colors.Normalize(vmin=back1-2*sigmaback1, vmax=back1+5*sigmaback1, clip=False)
+        if ( (banda_obj=='f277w') | (banda_obj=='f356w') | (banda_obj=='f444w') ) :
+          lowsigma=4 ; highsigma=100 
+        else : lowsigma=3 ; highsigma=25
+        norm1=matplotlib.colors.Normalize(vmin=back1-lowsigma*sigmaback1, vmax=back1+highsigma*sigmaback1, clip=False)
         axs[count_image].imshow(imagein, origin='lower', norm=norm1) #, cmap='cool')
         #ax1.set_title('Original')
         axs[count_image].text(0.05, 0.95, bande_all[jkk], horizontalalignment='left',verticalalignment='top', fontsize=14, color='w',transform=axs[count_image].transAxes, weight='bold')
         axs[count_image].set_xticks([])
         axs[count_image].set_yticks([])
-      
-
+      #
+      #
       # DERIVE SEGMENTATION IMAGE 
       res=''
-      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,output_folder_segmap,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_threshold)
-      
-
+      maskgood,binary_pawlik_4,binary_pawlik_4_complete,segmap_final=make_segmentation(segmap_detection_type,segmentation_type,imagein,IDpixscale_banda,output_folder_segmap,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_threshold,deblend_segmap)
+      #
+      # --------------------------------------------
       # RIGA PER CREARE SORGENTI SECONDARIE DA RIMPIAZZARE CON SYNTHETIC SKY ANCHE DOVE E' TUTTO ZERO (immagini tagliate etc ...)
       problems_cut= imagein==0.
       problems_cut=problems_cut*1
       binary_pawlik_4_complete[problems_cut==1]=1
       #plt.imshow(binary_pawlik_4_complete,origin='lower')
       #plt.show()
-
-
-
+      # --------------------------------------------
+      #
       ###############################################################################
       # Calculate statistics image and derive bkg subtracted image                  #
       ###############################################################################
-
+      #
       background_all2 = maskgood < 0.5
       background_all2=1*background_all2
       image_bkg2=imagein*background_all2
       background_only2=image_bkg2[background_all2>0]
-      
+      #
       #if ( (IDgal==76) &  (banda_obj=='f150w') ) :
       #  plt.imshow(imagein)
       #  plt.show()
       #  plt.imshow(maskgood)
       #  plt.show()
+      #
       # INTERNAL CHECK : 
+      #
       '''
       fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16, 6))
       ax1.imshow(imagein, origin='lower', interpolation='nearest',cmap='hot')
@@ -399,26 +445,25 @@ if calculate_parameters==True :
       ax3.set_title('Segmentation complete')
       plt.show()
       '''
-      #quit()
-
+      #
+      #
       # --------------------------------------------------------------
       imagestatBK=calc_bg(background_only2)
       backBK=imagestatBK[0]   #'background'
       sigmabackBK=imagestatBK[1]
       print('background mean and std =',backBK,sigmabackBK)
-      
+      #
       # Subtract background
       image_new=imagein-backBK    # image_new is imagein background subtracted
       noisy_img = np.random.normal(0,sigmabackBK,imagein.shape)  
       #print('len(smoothRadius) =',len(smoothRadius))
-      
+      #
       image_new_masked=maskgood*image_new
       image_new_conv=maskgood*0
       #singlegood=maskgood*1
-
-
+      #
       # -----------------------------------------------------------------------------------------
-      
+      #
       if (calculate_area_SNpixel==True) :
         
         print('\n\nCalculate S/N per pixel (Lotz +2004) and standard way')
@@ -476,6 +521,7 @@ if calculate_parameters==True :
         SNpixel2=-9 ; SNpixel_img1=-9
         SNpixel_Lotz04=-9
         area2=-9
+     
 
       photoband_all.append(banda_obj_index)
       sn_per_pixel2.append(np.round(SNpixel2,1))
@@ -494,8 +540,6 @@ if calculate_parameters==True :
           image_new_replaced=replace_secondary_sources_with_bkg(image_new,binary_pawlik_4,binary_pawlik_4_complete)
           imagein_replaced=replace_secondary_sources_with_bkg(imagein,binary_pawlik_4,binary_pawlik_4_complete)
           
-
-
           if check_result==True :
             f, ((ax1, ax2, ax3)) = plt.subplots(1, 3, sharey=True) #, sharex=True)
             imagestat1=calc_bg(image_new[maskgood==1])
@@ -530,8 +574,6 @@ if calculate_parameters==True :
         #  image_new_replaced=image_new*1
         #  imagein_replaced=imagein*1
   
-
-
 
       # print('Now show images !!')
       #print('sum images =',np.sum(maskgood),np.sum(maskgood*imagein))
@@ -618,54 +660,75 @@ if calculate_parameters==True :
     
       if (calculate_asymmetry_center==True) : # Questo calcola anche l'asymmetry !!!!
       # The center of rotation is not defined a priori, but is measured through an iterative process whereby the value of the asymmetry is calculated at the initial central guess (usually the geometric center or light centroid) and then the asymmetry is calculated around this central guess using some fraction of a pixel difference. This is repeated until a global minimum is found (Conselice et al. 2000a).
-        
+        iop=1
+        #if iop==1 :
         try : 
-          imageX1=imagein_replaced*1
-          dim9=round(imageX1.shape[0]/2)
-      
-          range9=4
-          centri=np.arange(dim9-range9,dim9+range9,1)
+          #imageX1=imagein_replaced*1
+          range_centers=10
+          dim9=round((image_new_replaced.shape[0]-range_centers)/2)
+          dim10=round((image_new_replaced.shape[0]+range_centers)/2)
+          ######
+          centri=np.arange(dim9,dim10,1.)
+          centri=centri[ (centri>=0) & (centri<=image_new_replaced.shape[0])]
           asymmetry_array=[] ; ik_all=[] ; ip_all=[] ; counterA=0
-          support_asymm=imageX1>-1e20
+          denominatore_array=[] ; area_array=[]
+          support_asymm=image_new_replaced>-1e20
           support2_asymm=support_asymm*1
           # centri=centri9*1  # centri8 for imageX2, otherwise centri9 for image_new
-          for ik in centri :
-            for ip in centri :
+          #imagein_replaced[50,50]=1
+          for ix5 in centri :
+            for iy5 in centri :
               # print('center =',ik,ip)
               # Questa specie di maschera la metto (support2_asymm), pero' non serve a niente !!!
               #_asymmetry1,_denominatore=asymmetry_simple(imageX2,support2_asymm,ik,ip)
               #_asymmetry1,_denominatore=asymmetry_simple(image_new,support2_asymm,ik,ip)
               # _asymmetry1,_denominatore=asymmetry_simple(imagein,support2_asymm,ik,ip)
-              _asymmetry1,_denominatore=asymmetry_simple(imagein_replaced,maskgood,ik,ip)
+              #ik=50 ; ip=50
+              _asymmetry1,_denominatore1,_area1=asymmetry_simple(image_new_replaced,maskgood,ix5,iy5,range_centers)
               #asymmetry_last,area_best,xc_best,yc_best,denominatore_best=asymmetry_function2(ik,ip,imageX2,maskgood_smaller,show_result)
               asymmetry_array.append(_asymmetry1)
-              ik_all.append(ik)
-              ip_all.append(ip)
+              denominatore_array.append(_denominatore1)
+              area_array.append(_area1)
+              ik_all.append(ix5)
+              ip_all.append(iy5)
               counterA+=1
               #print('asymmetry last (numeratore) =',asymmetry_last)
               #print('denominatore best =',denominatore_best)
           
           #counter_vector=np.arange(1,counterA+1,1)
           asymmetry_array=np.array(asymmetry_array)
+          asymmetry_array = asymmetry_array[~np.isnan(asymmetry_array)]
+          asymmetry_array = asymmetry_array[asymmetry_array<1e4]
           #print(asymmetry_array)
-          #quit()
+          
           # asymmetry_array=asymmetry_array[(asymmetry_array>-1) & (asymmetry_array<10)]
           minimum_asymmetry=min(asymmetry_array)
           #print('minimum asymmetry =',minimum_asymmetry)
-          indexmin=np.where(asymmetry_array<minimum_asymmetry+0.00001)[0]
+          indexmin=np.where(asymmetry_array<minimum_asymmetry+0.0000001)[0]
           if len(indexmin)>=1 : 
             indexmin=indexmin[0]
           
+          min_denominatore=denominatore_array[indexmin]
+          min_area=area_array[indexmin]
           center_ax=ik_all[indexmin] ; center_ay=ip_all[indexmin]
-          sizeKA=20 ; Rmax_guess=10
+          sizeKA=skybox_arcsec/IDpixscale_banda ; Rmax_guess=10
+          # sizeKA=20 ;  Rmax_guess=10
           which_calc='asymmetry'
           #background_asymmetry,background_smoothness_notgood=asymmetry_bkg_simple(sizeKA,maskgood,image_new,Rmax_guess,which_calc,Rmax_guess)  
-          background_asymmetry,min_bkg_asymmetry,background_smoothness_notgood=asymmetry_bkg_simple(sizeKA,binary_pawlik_4_complete,imagein_replaced,Rmax_guess,which_calc,Rmax_guess)  
-          print('background asymmetry and minimum =',background_asymmetry,min_bkg_asymmetry)
-          asymmetry_final=minimum_asymmetry-background_asymmetry
+          med_bkg_asymmetry,min_bkg_asymmetry,background_smoothness_notgood,background_smoothness_notgood2,area_asym_good_bkg,area_smooth=asymmetry_bkg_simple(sizeKA,binary_pawlik_4_complete,image_new_replaced,Rmax_guess,which_calc,smoothradiusX22)  
+          print('minimum asymmetry =',minimum_asymmetry)
+          print('background asymmetry and minimum =',med_bkg_asymmetry/area_asym_good_bkg*min_area,min_bkg_asymmetry/area_asym_good_bkg*min_area)
+          
+          print('area_asym_good_bkg, min_area (of the source) =',area_asym_good_bkg,min_area)
+          asymmetry_final=(minimum_asymmetry-med_bkg_asymmetry/area_asym_good_bkg*min_area)/(2*min_denominatore)
+          #asymmetry_final=minimum_asymmetry-background_asymmetry
           print('asymmetry center =',center_ax,center_ay)
-          print('Asymmetry, asymm background, and asymmetry final =')
-          print(minimum_asymmetry,min_bkg_asymmetry,asymmetry_final)
+          #print('Asymmetry, asymm background, and asymmetry final =')
+          #print('med bkg asymmetry =',med_bkg_asymmetry)
+          #print('min bkg asymmetry =',min_bkg_asymmetry)
+          #print('area_good, min_area =',area_asym_good,min_area)
+          print('Asymmetry final =',asymmetry_final,'\n---------------------------------------------\n')
+          #quit()
           # print('xc_asymmetry from statmorph =',morphsingle.xc_asymmetry)
           # print('yc_asymmetry =', morphsingle.yc_asymmetry)
           #print('asymmetry statmorph =', morphsingle.asymmetry)
@@ -674,25 +737,26 @@ if calculate_parameters==True :
           #plt.plot(counter_vector,asymmetry_array,color='cyan',lw=1.2)
           asymmetry_R=np.round(asymmetry_final,3)
           #asymmetry_R=np.round(minimum_asymmetry,3)  # For now I do not save the background subtracted value !!!!
-
+          #quit()
+        #else :
         except :
-          asymmetry_R=0
+          asymmetry_R=-9
           center_ax=imagein.shape[0]/2 ; center_ay=imagein.shape[1]/2
       else :
-        asymmetry_R=0
+        asymmetry_R=-9
         center_ax=imagein.shape[0]/2 ; center_ay=imagein.shape[1]/2
       
       #plt.imshow(maskgood,origin='lower')
       #plt.show()
-      print('asymmetry center =',center_ax,center_ay)
+      #print('Asymmetry =',asymmetry_R)
+      #print('asymmetry center =',center_ax,center_ay)
       #sys.exit()
       asymmetry_all1.append(np.round(asymmetry_R,3))
       centerax_all.append(center_ax)
       centeray_all.append(center_ay)
-
-
-
-
+      #quit()
+      
+      # ------------------------------------------------------------------------
 
 
       # CALCULATE RMAX 
@@ -861,15 +925,17 @@ if calculate_parameters==True :
 
       # ---------------------------------------------------------------------------------
       if calculate_smoothness==True :
-        print('\n\nCalculate smoothness')
+        #print('\n\nCalculate smoothness')
         #quit()
+
+        imageSMO=imagein_replaced*1
 
         smooY=1  # np.sum(np.ravel(maskgood))
 
-        if smooY==1 :
-        #try :
+        #if smooY==1 :
+        try :
           print('\nCalculate smoothness : --------------- --------------- ------------ -----------\n')
-          print('image shape =',image_new_replaced.shape)
+          print('image shape =',imageSMO.shape)
           #quit()
           #print('Pixel scale =',IDpixscale[iyy])
           #print('FWHM band =',IDfwhm[iyy])
@@ -884,51 +950,83 @@ if calculate_parameters==True :
 
           #plt.imshow(image_new_replaced,origin='lower')
           #plt.show()
-          
+          smoothradiusX22=Rmax*0.25   # As in Lotz +2004
           print('smoothradius =',smoothradiusX22)
-          print('smoothtype =',smoothtype)
+          #print('smoothtype =',smoothtype)
           #quit()
-          imagesmooth22=smooth(image_new_replaced,smoothtype,int(smoothradiusX22), factor_smooth22)  # Il 15 alla fine che vuol dire ??
-      
+          #imageSMO[20,60]=1
+          #center_ax=20 ; center_ay=60
+          circ_mask1a= create_circular_mask(imageSMO.shape[0], imageSMO.shape[1], center=(center_ay,center_ax), radius=0.25*Rmax)
+          circ_mask2a= create_circular_mask(imageSMO.shape[0], imageSMO.shape[1], center=(center_ay,center_ax), radius=Rmax)
+          circ_mask1a=circ_mask1a*1
+          circ_mask2a=circ_mask2a*1
+          annulus_mask_b=np.zeros(imageSMO.shape)
+          annulus_mask_b[ (circ_mask1a==0) & (circ_mask2a==1)]=1
+          #imageLLX=annulus_mask_b*imageSMO_conv
+          #imageLLbX=imageLLX[annulus_mask_b==1]
+          #annulus_image_b=np.ravel(imageLLbX)
+          #fig, (ax1, ax2) = plt.subplots(1, 2,sharex=True,sharey=True,figsize=(12, 6))
+          #ax1.imshow(imageSMO, origin='lower', interpolation='nearest',cmap='hot')
+          #ax1.set_title('Image original')
+          #ax2.imshow(annulus_mask_b, origin='lower', interpolation='nearest',cmap='hot')
+          #ax2.set_title('Image original conv')
+          #plt.show()
+          #quit()
+          imagesmooth22=smooth(imageSMO,smoothtype,int(smoothradiusX22), factor_smooth22)  # Il 15 alla fine che vuol dire ??
           # Calculate the residual image 
-          residuals_orig22=image_new_replaced-imagesmooth22  # image_4_clumpiness e' immagine background subtracted
+          residuals_orig22=imageSMO-imagesmooth22  # image_4_clumpiness e' immagine background subtracted
           residuals22=residuals_orig22*1
           residuals22[residuals22 < 0] = 0
-          
+          residualsBB=np.abs(residuals22*annulus_mask_b)
+          imageORIG=np.abs(imageSMO*annulus_mask_b)
+
+          #
           # Questo perche' in Lotz+2004 c'e' scritto che per la computation della smoothness devi escludere le regioni centrali, entro 0.25*Rpetrosian
-          
+          #
           #   apertureX22 = CircularAperture((center_ax,center_ay), r= smoothradiusX22)
           #   aper2222= apertureX22.to_mask(method='center')
           #   data_weighted22 = aper2222.to_image(image_new.shape)
           #   data_weighted22 = np.absolute(data_weighted22-1) # Prendo l'opposto della maschera
           #   # final_mask=binary_pawlik_4*data_weighted22 # Lotz+2004
           #   final_mask=binary_pawlik_4*1  # per momento facciamo cosi, mantieni tutto, anche il centro
-          
-          hD,wD=image_new_replaced.shape
-          mask504=create_circular_mask(hD, wD, center=(center_ax,center_ay),radius=smoothradiusX22)
-          mask505=~mask504
+          #    hD,wD=image_new_replaced.shape
+          #    mask504=create_circular_mask(hD, wD, center=(center_ax,center_ay),radius=smoothradiusX22)
+          #    mask505=~mask504
           #plt.imshow(binary_pawlik_4)
           #plt.show()
           #plt.imshow(final_mask)
-      
-          residuals22_1d=np.absolute(np.ravel(residuals22*maskgood))
-          denomin_22=np.absolute(np.ravel(image_new_replaced*maskgood))
+          #residuals22_1d=np.abs(np.ravel(residuals22*annulus_mask_b))
+          area_new_good=len(residualsBB[residualsBB>0])
+          smoothness_OBJ=sum(residualsBB[residualsBB>0])
+          #denomin_22=np.abs(np.ravel(imageSMO*annulus_mask_b))
+          denominatore_comune=sum(imageORIG[imageORIG>0])
+          #print(denominatore_comune)
+          #quit()
+          # # # # # 
 
-          if (  (sum(denomin_22)>0) & (sum(denomin_22)<99999) ) :
-            smoothness22_source=sum(residuals22_1d)/sum(denomin_22)
-            print('sum numeratore e denominatore =',sum(residuals22_1d),sum(denomin_22))
-            print('Smoothness source =',smoothness22_source)
+          #residuals22_1d=np.abs(np.ravel(residuals22))
+          #area_new_good=len(residuals22_1d)
+          #smoothness_OBJ=sum(residuals22_1d)
+          #denomin_22=np.abs(np.ravel(imagein_replaced))
+          #denominatore_comune=sum(denomin_22)
+
+
+          if (  (denominatore_comune>0) & (denominatore_comune<1e5) ) :
+            #smoothness22_source=sum(residuals22_1d)/sum(denomin_22)
+            #print('sum numeratore e denominatore =',sum(residuals22_1d),sum(denomin_22))
+            #print('Smoothness source =',smoothness22_source)
             #time.sleep(0.6)
-          
+            # # # # 
             sizeKA33=skybox_arcsec/IDpixscale_banda
             which_calc='smoothness'
-            background_asymmetry_notgood,min_as_back,background_smoothness_good=asymmetry_bkg_simple(sizeKA33,maskgood,imagein_replaced,Rmax,which_calc,smoothradiusX22)  
-            print('smoothness background =',background_smoothness_good)
-        
-            smoothness22=smoothness22_source-background_smoothness_good   # For now it is not anymore background subtracted !!!
-            print('Smoothness =',smoothness22)
+            background_asymmetry_notgood,min_as_back,med_background_smoothness_good,min_background_smoothness_good,area_asym_bkg,area_smooth=asymmetry_bkg_simple(sizeKA33,maskgood,imagein_replaced,Rmax,which_calc,smoothradiusX22)  
+            #print('smoothness background =',med_background_smoothness_good)
+            smoothness22_source=(smoothness_OBJ-med_background_smoothness_good*area_new_good/area_smooth)/denominatore_comune
+            #smoothness22_source-min_background_smoothness_good   # For now it is not anymore background subtracted !!!
+            print('Smoothness final (obj - bkg) =',smoothness22_source,'\n\n')
             #time.sleep(0.1)
             #print('\n')
+            smoothness22=smoothness22_source*1
           else :
             smoothness22_source = -9
             smoothness22= -9.
@@ -1016,19 +1114,21 @@ if calculate_parameters==True :
               plt.savefig(namefile,dpi=80)
               plt.close(fig9)
   
-        #except : smoothness22= 0
-        else : 
-          smoothness22= -9
+        except : 
+        #else : 
+          smoothness22= -9 ; smoothness22_source= -9
 
       else :
-        smoothness22= -9.
+        smoothness22= -9. ; smoothness22_source= -9.
       
       if np.sum(np.ravel(maskgood)) <= 0 :
-        smoothness22= -9.
+        smoothness22= -9. ; smoothness22_source= -9.
 
       #print(np.round(smoothness22,3))
       #quit()
       smoothness_all.append(np.round(smoothness22,3))
+      #quit()
+
 
 
 
@@ -1200,38 +1300,35 @@ if calculate_parameters==True :
         #m20_all[uu,rr]=0
         #'
         m20_1=np.sum(np.ravel(maskgood))
-        #try :
+        
 
 
         if m20_1>0 :
+          try :
         #kkll=2
         #if kkll==2 :
-          imageX1=imagein_replaced*maskgood # maskgood*imagein_replaced # image_new_replaced*maskgood
-          #plt.imshow(imageX1,origin='lower')
-          #plt.show()
-          
-          passo=10
-          centersF_x=np.arange(round(center_ax)-passo,round(center_ax)+passo,0.5) 
-          centersF_y=np.arange(round(center_ay)-passo,round(center_ay)+passo,0.5) 
-          muTOT_final_value,x_center_muTOT,y_center_muTOT=minimize_mu(imageX1,centersF_x,centersF_y)
-          mu20=M20_simple(imageX1,x_center_muTOT,y_center_muTOT)
-          print('Mu_tot and mu20 and centers =',muTOT_final_value,mu20,x_center_muTOT,y_center_muTOT)
-          m20a=mu20/muTOT_final_value ; 
-          m20=np.log10(m20a)
-          m20=np.round(m20,3)
-          print('M20 final (handmade) =',m20)
-          print('\n\n')
-          #quit()
-        #except :
+            imageX1=imagein_replaced*maskgood # maskgood*imagein_replaced # image_new_replaced*maskgood
+            #plt.imshow(imageX1,origin='lower')
+            #plt.show()
+            
+            passo=8
+            centersF_x=np.arange(round(center_ax)-passo,round(center_ax)+passo,1.) 
+            centersF_y=np.arange(round(center_ay)-passo,round(center_ay)+passo,1.) 
+            muTOT_final_value,x_center_muTOT,y_center_muTOT=minimize_mu(imageX1,centersF_x,centersF_y)
+            mu20=M20_simple(imageX1,x_center_muTOT,y_center_muTOT)
+            print('Mu_tot and mu20 and centers =',muTOT_final_value,mu20,x_center_muTOT,y_center_muTOT)
+            m20a=mu20/muTOT_final_value ; 
+            m20=np.log10(m20a)
+            m20=np.round(m20,3)
+            print('M20 final (handmade) =',m20)
+            print('\n\n')
+            #quit()
+          except : m20=-9.
         else :
           m20=-9.
       else :
         m20=-9.
-      
       #if np.sum(np.ravel(maskgood))<= 0 : m20=-9.
-      
-      #quit()
-      
 
       m20_all.append(m20)
       #print('M20 final =',m20_all)
@@ -1242,7 +1339,7 @@ if calculate_parameters==True :
       #print(m20)
       #quit()
       print('Gini and M20 =',gini,m20)
-      time.sleep(0.7)
+      time.sleep(0.01)
          
 
       # *******************************************************************
@@ -1717,7 +1814,7 @@ if calculate_parameters==True :
 
     
 
-      if (calculate_shape_asymmetry_easier==True):
+      if (calculate_shape_asymmetry_easier_0==True):
         print('\n\nCalculate shape asymmetry')
         shapeasy_1=1 
 
@@ -1735,7 +1832,7 @@ if calculate_parameters==True :
           #shape_asymmetry_R=np.round(shape_asymmetry,3)
           print('Shape asymmetry =',shape_asymmetry)
           if ( (shape_asymmetry > -5) & (shape_asymmetry < 5) ) :
-            print('ok shape asymmetry')
+            print('ok ok shape asy')
           else : shape_asymmetry=-9
           #sys.exit()
           #print('Anche per la shape asymmetry devi togliere quella del background ???')
@@ -1747,7 +1844,112 @@ if calculate_parameters==True :
 
       if np.sum(np.ravel(maskgood)) <= 0 :
         shape_asymmetry=-9.
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+      if (calculate_shape_asymmetry_easier_1==True):
+        print('\n\nCalculate shape asymmetry')
+        shapeasy_1=1  ; show_result_As=False
+        # ----------------------------------------------
+        #try : 
+        if shapeasy_1==1 :
+          #imageX1=imagein_replaced*1
+          range_centers=10
+          dim9=round((image_new_replaced.shape[0]-range_centers)/2)
+          dim10=round((image_new_replaced.shape[0]+range_centers)/2)
+          ######
+          centri=np.arange(dim9,dim10,1.)
+          centri=centri[ (centri>=0) & (centri<=image_new_replaced.shape[0])]
+          shape_asymmetry_array=[] ; ik_shape_all=[] ; ip_shape_all=[] ; counterA=0
+          denominatore_shape_array=[] ; shape_area_array=[]
+          support_asymm=image_new_replaced>-1e20
+          support2_asymm=support_asymm*1
+          # centri=centri9*1  # centri8 for imageX2, otherwise centri9 for image_new
+          #imagein_replaced[50,50]=1
+          for ix5 in centri :
+            for iy5 in centri :
+              # print('center =',ik,ip)
+              # Questa specie di maschera la metto (support2_asymm), pero' non serve a niente !!!
+              #_asymmetry1,_denominatore=asymmetry_simple(imageX2,support2_asymm,ik,ip)
+              #_asymmetry1,_denominatore=asymmetry_simple(image_new,support2_asymm,ik,ip)
+              # _asymmetry1,_denominatore=asymmetry_simple(imagein,support2_asymm,ik,ip)
+              #ik=50 ; ip=50
+              #_asymmetry1,_denominatore1,_area1=asymmetry_simple(image_new_replaced,maskgood,ix5,iy5,range_centers)
+              #asymmetry_last,area_best,xc_best,yc_best,denominatore_best=asymmetry_function2(ik,ip,imageX2,maskgood_smaller,show_result)
+              shape_asymmetry_last=asymmetry_function2_shape(ix5,iy5,maskgood,maskgood,range_centers)
+              shape_asymmetry_array.append(shape_asymmetry_last)
+              #denominatore_array.append(_denominatore1)
+              #shape_area_array.append(area_best)
+              ik_shape_all.append(ix5)
+              ip_shape_all.append(iy5)
+              counterA+=1
+              #print('asymmetry last (numeratore) =',asymmetry_last)
+          #counter_vector=np.arange(1,counterA+1,1)
+          shape_asymmetry_array = np.array(shape_asymmetry_array)
+          shape_asymmetry_array = shape_asymmetry_array[~np.isnan(shape_asymmetry_array)]
+          shape_asymmetry_array = shape_asymmetry_array[shape_asymmetry_array<1e4]
+          #print('shape_asymmetry_array =',shape_asymmetry_array)
+          # asymmetry_array=asymmetry_array[(asymmetry_array>-1) & (asymmetry_array<10)]
+          minimum_shape_asymmetry=min(shape_asymmetry_array)
+          #print('minimum asymmetry =',minimum_asymmetry)
+          indexmin=np.where(shape_asymmetry_array<minimum_shape_asymmetry+0.0000001)[0]
+          if len(indexmin)>=1 : 
+            indexmin=indexmin[0]
+          #min_denominatore=denominatore_array[indexmin]
+          #min_area=shape_area_array[indexmin]
+          center_shape_ax=ik_shape_all[indexmin] ; center_shape_ay=ip_shape_all[indexmin]
+
+          shape_asymmetry=minimum_shape_asymmetry/(2.*sum(np.ravel(maskgood)))
+          # print('Shape asymmetry =',shape_asymmetry)
+          shape_asymmetry=np.round(shape_asymmetry,3)
+          #shape_asymmetry_R=np.round(shape_asymmetry,3)
+          print('Shape asymmetry =',shape_asymmetry)
+          print('Shape asymmetry centroid =',center_shape_ax,center_shape_ay)
+          if ( (shape_asymmetry > -5) & (shape_asymmetry < 5) ) :
+            print('ok shape asymmetry')
+          else : shape_asymmetry=-9 ; center_shape_ax=-9 ; center_shape_ay=-9
+          if sum(np.ravel(maskgood)) <= 0 : shape_asymmetry=-9. ; center_shape_ax=-9 ; center_shape_ay=-9
+        # except :
+        else : 
+          shape_asymmetry=-9. ; center_shape_ax=-9 ; center_shape_ay=-9
+      else :
+        shape_asymmetry=-9. ; center_shape_ax=-9 ; center_shape_ay=-9
+
+      #  if shapeasy_1==1 :
+      #  #try :
+      #    #print('\n Calculate the shape asymmetry...')
+      #    # maskgood_smaller e' la versione reduced(tagliata) di binary_pawlik
+      #    show_result=False
+      #    shape_asymmetry_last,area_best,xc_best,yc_best=asymmetry_function2_shape(center_ax,center_ay,maskgood,maskgood,show_result)
+      #    # print('shape asymmetry last (num) =',shape_asymmetry_last)
+      #    shape_asymmetry=shape_asymmetry_last/(2.*np.sum(maskgood))
+      #    # print('Shape asymmetry =',shape_asymmetry)
+      #    shape_asymmetry=np.round(shape_asymmetry,3)
+      #    #shape_asymmetry_R=np.round(shape_asymmetry,3)
+      #    print('Shape asymmetry =',shape_asymmetry)
+      #    if ( (shape_asymmetry > -5) & (shape_asymmetry < 5) ) :
+      #      print('ok shape asymmetry')
+      #    else : shape_asymmetry=-9
+      #    #sys.exit()
+      #    #print('Anche per la shape asymmetry devi togliere quella del background ???')
+      #  #except :
+      #  else :
+      #    shape_asymmetry=-9.
+      #else : 
+      #  shape_asymmetry=-9.
+      # ----------------------------------------
+      #if sum(np.ravel(maskgood)) <= 0 :
+      #  shape_asymmetry=-9.
     
       # --------- -------- --------- --------- ---------- ---------
       
@@ -1757,6 +1959,8 @@ if calculate_parameters==True :
       shape_asymmetry_all.append(shape_asymmetry)
       #asymmetry_all2.append(-9)
       ID_all.append(IDgal)
+      #quit()
+      # Check that shape asymmetry is also between 0 and 1 always.
 
 
 
@@ -2308,7 +2512,7 @@ if calculate_parameters==True :
             #clumpiness4[uu,rr]=np.round(np.sum(imagepxm*maskgood_debl)/np.sum(maskgood_debl*imagein-imagenucleus*maskgood_debl),4)
             clumpiness4[uu,rr]=np.round(np.sum(imagepxm*singlegood-imagepxm*imagenucleus)/np.sum(singlegood*imagein-singlegood*imagenucleus),4)
           print('clumpiness4 =',clumpiness4[uu,rr])
-  
+          # -------
           if (label1x==-1) : # Non ci sono nuclei
             clumpiness5[uu,rr]=clumpiness[uu,rr]*1
           else :
@@ -2316,7 +2520,7 @@ if calculate_parameters==True :
             #clumpiness6[uu,rr]=np.round(np.sum(imagepxm*maskgood_debl)/np.sum(maskgood_debl*imagein-imagenucleus*maskgood_debl),4)
             clumpiness5[uu,rr]=np.round(np.sum(imagepxm*singlegood*map_no_nuclei)/np.sum(singlegood*imagein),4)
           print('clumpiness5 =',clumpiness5[uu,rr])
-  
+          # -------
           #image_nuclei=imagein*map_nuclei
           if (label1x==-1) : # Non ci sono nuclei
             clumpiness6[uu,rr]=clumpiness[uu,rr]*1
@@ -2326,7 +2530,6 @@ if calculate_parameters==True :
             #clumpiness6[uu,rr]=np.round(np.sum(imagepxm*maskgood_debl)/np.sum(maskgood_debl*imagein-imagenucleus*maskgood_debl),4)
             clumpiness6[uu,rr]=np.round(np.sum(imagepxm*singlegood*map_no_nuclei)/np.sum(singlegood*imagein*map_no_nuclei),4)
           print('clumpiness6 =',clumpiness6[uu,rr])
-  
         else :
           clumpiness3[uu,rr]=0 ; clumpiness4[uu,rr]=0 ; clumpiness5[uu,rr]=0 ; clumpiness6[uu,rr]=0
         '''
@@ -2336,13 +2539,10 @@ if calculate_parameters==True :
         #clumpiness6[uu,rr]=0
         #print('clumpiness 3, 4, 5, 6 =',clumpiness3[uu,rr],clumpiness4[uu,rr],clumpiness5[uu,rr],clumpiness6[uu,rr])
         #print '\nclumpiness 3 e 4=',clumpiness3[uu,rr],clumpiness4[uu,rr]
-  
+        #
         #fin5.write(str(IDgal)+' '+str(np.round(clumpiness[uu,rr],3))+' '+str(np.round(clumpiness2[uu,rr],3))+' '+str(np.round(clumpiness3[uu,rr],3))+' '+str(np.round(clumpiness4[uu,rr],3))+' '+str(np.round(clumpiness5[uu,rr],3))+' '+str(np.round(clumpiness6[uu,rr],3))+'\n')
-  
-  
-  
+        #
         # -------------------------------------------------------------
-  
         
         # 3k) Visualization clumps :
         
@@ -2439,7 +2639,7 @@ if calculate_parameters==True :
           #if ( (show_all==True)) :
           plt.show()
           '''
-    
+          # ----------
           # 3l) Per salvare dei fits files :
           #print('Stop before saving table')
           #sys.exit()
@@ -2458,14 +2658,12 @@ if calculate_parameters==True :
         clumpiness_all.append(clumpiness_BB)
         clumpiness2_all.append(clumpiness2_BB)
       else :
+        clumpiness_BB=-9
         clumpiness_all.append(-9)
         clumpiness2_all.append(-9)
-
-          
-  
+      
       # ----------------------------------------------------------------------------------
-    
-    
+      
       #print(clumpiness_all)
       #print('smoothness_SM =',smoothness_SM)
       #if counter989==8 :
@@ -2476,23 +2674,33 @@ if calculate_parameters==True :
       concentration_4_stamp=np.round(concentration,2)
       shape_asymmetry_4_stamp=np.round(shape_asymmetry,2)
       smoothness_4_stamp=np.round(smoothness22,2)
+      clumpiness_4_stamp=np.round(clumpiness_BB,2)
+      Rmax_4_stamp=np.round(Rmax,2)
+      center_ax_stamp=np.round(center_ax,2)
+      center_ay_stamp=np.round(center_ay,2)
+      asymmetry_4_stamp=np.round(asymmetry_R,2)
+      f988.writelines(str(IDgal)+' '+banda_obj+' '+str(clumpiness_4_stamp)+' '+str(Rmax_4_stamp)+' '+str(gini_4_stamp)+' '+str(m20_4_stamp)+' '+str(concentration_4_stamp)+' '+str(asymmetry_4_stamp)+' '+str(center_ax_stamp)+' '+str(center_ay_stamp)+' '+str(shape_asymmetry_4_stamp)+' '+str(smoothness_4_stamp)+' '+str(SNpixel2)+' '+str(SNpixel_Lotz04)+' '+str(area2)+' \n')
 
       # NOW WRITE RESULTS IN STAMPS :
       if make_images==True :
         # WRITE RESULTS ON TOP OF CUTOUTS :
-  
-        axs[count_image].text(0.03, 0.2, 'G ='+str(gini_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
-        axs[count_image].text(0.03, 0.1, r'M$_{20}$ ='+str(m20_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
-        axs[count_image].text(0.97, 0.3, 'C ='+str(concentration_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
+        # -------------------------------------------
+        axs[count_image].text(0.03, 0.3, 'G ='+str(gini_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
+        axs[count_image].text(0.03, 0.2, r'M$_{20}$ ='+str(m20_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
+        axs[count_image].text(0.03, 0.1, 'C ='+str(concentration_4_stamp), horizontalalignment='left',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         axs[count_image].text(0.97, 0.2, r'A$_S$ ='+str(shape_asymmetry_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         axs[count_image].text(0.97, 0.1, r'S ='+str(smoothness_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
+        axs[count_image].text(0.97, 0.3, r'A ='+str(asymmetry_4_stamp), horizontalalignment='right',verticalalignment='top', fontsize=12, color='w',transform=axs[count_image].transAxes, weight='bold')
         count_image+=1
 
+
     # Indentation of this part is correct  !!!!
+    # Indentation of this part is 4 places if you loop on the bands
+    # Indentation of this part is 2 places if you only loop on the galaxy ID 
     if ( (make_images==True) & (test_segmap_index==False) ) :
       plt.subplots_adjust(wspace=0.01) #, hspace=0.01)
       #plt.tight_layout()
-      savefinalimage=output_folder+'image_cutouts_'+str(IDgal)+'_'+banda_obj+'.png'
+      savefinalimage=output_folder+'image_cutouts_'+str(IDgal)+'_'+'full_bands'+'.png'
       plt.savefig(savefinalimage, format='png', dpi=100)
       print('saved figure in '+savefinalimage)
       #if show_all==True : plt.show()
@@ -2503,6 +2711,10 @@ if calculate_parameters==True :
   # 3m) Store clumpiness and clump properties in table (and then save)
   #print 'store clumpiness info in table'
   # print('\n\nSaving arrays into table (len vectors =)')
+  
+  f988.close()
+  print('\nSuccessfully stored in table !!!!')
+  print('\n\n\n')
 
   #########################################################################
   # Store clumpiness and number of clumps in table/column to be saved :   #

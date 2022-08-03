@@ -82,12 +82,12 @@ def region(ra,dec,s,color,font,t2):
     reg= 'fk5;circle('+str(ra)+','+str(dec)+','+str(s)+'") #color='+color+' font='+str(font)+' text={'+str(t2)+'}'
     r = pyregion.parse(reg)
 
-def create_circular_mask(h, w, center=None, radius=None):
+def create_circular_mask(Ya, Xa, center=None, radius=None):
     if center is None: # use the middle of the image
-        center = (int(w/2), int(h/2))
+        center = (int(xcc/2), int(ycc/2))
     if radius is None: # use the smallest distance between the center and image walls
-        radius = min(center[0], center[1], w-center[0], h-center[1])
-    Y, X = np.ogrid[:h, :w]
+        radius = min(center[0], center[1], Xa-center[0], Ya-center[1])
+    Y, X = np.ogrid[:Xa, :Ya]
     dist_from_center = np.sqrt((X - center[0])**2 + (Y- center[1])**2)
     mask = dist_from_center <= radius
     return mask
@@ -650,7 +650,7 @@ def rot(imageFF, xy, angleC):
 
 
 
-def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
+def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc,range_cc) :
   # Simple function which does not subtract the background !!!
   
   # print(xc,yc)
@@ -659,19 +659,71 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
   # plt.show()
 
   cutout3=image_smaller*1
+  maskgood3=maskgood_smaller*1
   #cutout3[maskgood_smaller==0]=0
+  #immagine_buona=cutout3*maskgood3
   
-  # Rotate around a center :+
-  cutoutE=cutout3[yc-15:yc+15,xc-15:xc+15]
+  # Rotate around a center :
+  maximum_extension_image=(image_smaller.shape[0]-range_cc)/2
+  SA1= int(yc-maximum_extension_image)
+  SA2= int(yc+maximum_extension_image+1)
+  SA3= int(xc-maximum_extension_image)
+  SA4= int(xc+maximum_extension_image+1)
+  #print('SA 1 2 3 4 =',SA1,SA2,SA3,SA4)
 
-  full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+  cutoutE=cutout3[SA1:SA2,SA3:SA4]
+  maskgoodE=maskgood3[SA1:SA2,SA3:SA4]
+  immagine_buona=cutoutE*maskgoodE
+  # plt.imshow(cutoutE,origin='lower')
+  # plt.show()
+  # quit()
+  #cutout2 = Cutout2D(image_smaller, (xc, yc), maximum_extension_image*2)
+  #cutoutE=cutout2.data
+
+  #print('xc and yc =',xc,yc)
+  #print('new xc and yc =',xc-range_cc/2.,yc-range_cc/2.)
+  #full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+  full_img_180 = ndimage.rotate(cutoutE, 180) # reshape=True)
+  maskgood_180 = ndimage.rotate(maskgoodE, 180)
+
+  # SEI SICURO CHE IL CENTRO SIA QUELLO GIUSTO ??????
 
   # rotated_image_smaller=np.rot90(cutout3, 2)
   #differenceASY=np.absolute(cutout3-other_image)
-  differenceASY=np.absolute(cutoutE-full_img_90)
-  image_smaller_abs=np.abs(cutoutE)
-  denominatorexx=2*np.sum(image_smaller_abs)
-  asymmetry1xx=np.sum(differenceASY)/denominatorexx
+  differenceASY=np.abs(cutoutE-full_img_180)
+
+  #differenceMASK=np.abs(maskgoodE-maskgood_180)
+  #maskgood_abs=np.abs(maskgoodE) 
+
+  buoni_indici= (maskgoodE==1) | (maskgood_180==1)
+  buoni_indici= buoni_indici*1
+  
+  image_smaller_abs=np.abs(cutoutE*buoni_indici)
+  #image_smaller_abs2=image_smaller_abs*buoni_indici
+  differenceASY2=differenceASY*buoni_indici
+  
+  # Now apply formula Lotz et al. 2004 !!!!
+  if (np.sum(buoni_indici)>0) & (np.sum(np.abs(image_smaller_abs))>0) :
+    denominatorexx=np.sum(image_smaller_abs[image_smaller_abs>0])
+    areaxx=len(image_smaller_abs[image_smaller_abs>0])
+    asymmetry1xx=sum(differenceASY2[differenceASY2>0]) # /denominatorexx
+
+  else : asymmetry1xx=99 ; denominatorexx=99 ; areaxx=99
+  #print('denominatore =',denominatorexx)
+
+  #plt.imshow(cutout3,origin='lower')
+  #plt.show()
+
+  # f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, sharex=True,figsize=(12,6))
+  # ###limit1=int(len(imagein)/2-3.2*morphsingle.rhalf_ellip)
+  # ###limit2=int(len(imagein)/2+3.2*morphsingle.rhalf_ellip)
+  # ax1.imshow(cutoutE, origin='lower', cmap='hot') 
+  # ax1.set_title(str(np.round(asymmetry1xx,3)))
+  # ##plt.show()
+  # ax2.imshow(full_img_180, origin='lower', cmap='hot') 
+  # ##plt.show()
+  # ax3.imshow(differenceASY2, origin='lower', cmap='hot') 
+  # plt.show()    
 
   #plt.imshow(cutout3,origin='lower')
   #plt.show()
@@ -747,7 +799,7 @@ def asymmetry_simple(image_smaller,maskgood_smaller,xc,yc) :
     #  #plt.imshow(image_smaller_abs)
     plt.title('differnce for ASYMM',fontsize=24)
     plt.show()
-  return asymmetry1xx,denominatorexx
+  return asymmetry1xx,denominatorexx,areaxx
 
 
 def minimize_mu(image_enter,xcenterA,ycenterA) :
@@ -815,8 +867,7 @@ def M20_simple(image_enterB,x_center_mm,y_center_mm) :
 
 def asymmetry_verysimple_4bkg(image_smaller33,maskgood_smaller33,xc33,yc33) :
   # Simple function which does not subtract the background !!!
-  
-  
+
   rotated_image_smaller33b=np.rot90(image_smaller33, 2)
   differenceASY33b=np.absolute(image_smaller33-rotated_image_smaller33b)
   image_smaller_abs33b=np.absolute(image_smaller33)
@@ -841,7 +892,54 @@ def asymmetry_verysimple_4bkg(image_smaller33,maskgood_smaller33,xc33,yc33) :
 
 
 # shape_asymmetry : 
-def asymmetry_function2_shape(xcen,ycen,image_smaller,maskgood_smaller,show_image) :
+# shape asymmetry 
+# image_smaller,maskgood_smaller,xc,yc,range_cc
+def asymmetry_function2_shape(xcen,ycen,image_smaller,maskgood_smaller,range_cc) :
+  show_image_shape_asymmetry=False
+  center_tolerance=10
+  center_search_x=np.arange(xcen-center_tolerance,xcen+center_tolerance,0.5)
+  center_search_y=np.arange(ycen-center_tolerance,ycen+center_tolerance,0.5)
+  # ----------------------
+  cutout4=image_smaller*1
+  maskgood4=maskgood_smaller*1
+  #cutout3[maskgood_smaller==0]=0
+  #immagine_buona=cutout3*maskgood3
+  # ----------------------  
+  # Rotate around a center :
+  maximum_extension_image=(image_smaller.shape[0]-range_cc)/2
+  SA1= int(ycen-maximum_extension_image)
+  SA2= int(ycen+maximum_extension_image+1)
+  SA3= int(xcen-maximum_extension_image)
+  SA4= int(xcen+maximum_extension_image+1)
+  #print('SA 1 2 3 4 =',SA1,SA2,SA3,SA4)
+  # ----------------------
+  cutoutE=cutout4[SA1:SA2,SA3:SA4]
+  #maskgoodE=maskgood3[SA1:SA2,SA3:SA4]
+  #immagine_buona=cutoutE*maskgoodE
+  # plt.imshow(cutoutE,origin='lower')
+  # plt.show()
+  # quit()
+  #cutout2 = Cutout2D(image_smaller, (xc, yc), maximum_extension_image*2)
+  #cutoutE=cutout2.data
+  # ----------------------
+  #print('xc and yc =',xc,yc)
+  #print('new xc and yc =',xc-range_cc/2.,yc-range_cc/2.)
+  #full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+  full_img_180 = ndimage.rotate(cutoutE, 180) # reshape=True)
+  #maskgood_180 = ndimage.rotate(maskgoodE, 180)
+  # ----------------------
+  # rotated_image_smaller=np.rot90(cutout3, 2)
+  #differenceASY=np.absolute(cutout3-other_image)
+  differenceASY=np.abs(cutoutE-full_img_180)
+  somma_totale_4shape=sum(np.ravel(differenceASY))
+  # print('\n\nEntered asymmetry_function2 for shape asymmetry')
+  return somma_totale_4shape # ,area_best,xc_best,yc_best #,AS4[0],AS5[0]
+
+
+
+
+
+def asymmetry_function2_shape_backup_3August(xcen,ycen,image_smaller,maskgood_smaller,show_image) :
   show_image_shape_asymmetry=False
   center_search_x=np.arange(xcen-4,xcen+4,0.2)
   center_search_y=np.arange(ycen-4,ycen+4,0.2)
@@ -1035,7 +1133,7 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
   # Usa uno skybox definito dai !! sizeK e' fissato nella simple version !!
 
   # THis function is very important, because if it does not find a good background, it tries with a smaller background box !!!
-  
+  sizeimage=image77.shape[0]
   # print('asymmetry-bkg-simple') 
   # print('shape input image =',image77.shape)
   # print('shape maskgood input =',maskgood77.shape)
@@ -1044,13 +1142,18 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
   assert sizeK7_max>0
   for sizeK7 in [round(sizeK7_max),round(sizeK7_max/2),round(sizeK7_max/3),round(sizeK7_max/4)] :
 
-    centrix=np.arange(round(sizeK7/2+1),round(image77.shape[0]-sizeK7/2-1),1)
-    centriy=np.arange(round(sizeK7/2+1),round(image77.shape[1]-sizeK7/2-1),1)
+    centrix=np.arange(round(sizeK7/2+1),round(image77.shape[0]-sizeK7/2-1),2)
+    centriy=np.arange(round(sizeK7/2+1),round(image77.shape[1]-sizeK7/2-1),2)
   
     #smoothradiusX745=Rmax77/4.
     factor_smooth745=1
 
-    asymm_array23=[] ; smoothness_background745=[]
+    #print(centrix)
+    #print(centriy)
+    #quit()
+
+    asymm_array23=[] ; smoothness_background745=[] ; area_array23=[] ; area_smoothness=[]
+    #denomin_smoothness=[]
     for xcc in centrix :
       for ycc in centriy :
         
@@ -1061,24 +1164,46 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
         #print(cutout3.shape)
         
         # Rotate around a center :+
-        cutoutE=cutout3[ycc-sizeK7:ycc+sizeK7,xcc-sizeK7:xcc+sizeK7]
-        maskE=mask3[ycc-sizeK7:ycc+sizeK7,xcc-sizeK7:xcc+sizeK7]
-        
-        #print(cutoutE.shape)
 
-        if ( (np.sum(maskE==0)) & (cutoutE.shape[0]-cutoutE.shape[1]==0) ) :
+        # maximum_extension_image=(image_smaller.shape[0]-range_cc)/2
+        # cutoutE=cutout3[round(yc-maximum_extension_image):round(yc+maximum_extension_image+1),round(xc-maximum_extension_image):round(xc+maximum_extension_image+1)]
+        # full_img_180 = ndimage.rotate(cutoutE, 180)
+        AS1=round(ycc-sizeK7/2)
+        AS2=round(ycc+sizeK7/2)
+        AS3=round(xcc-sizeK7/2)
+        AS4=round(xcc+sizeK7/2)
+        #print(round(ycc-sizeK7),round(ycc+sizeK7+1),round(xcc-sizeK7),round(xcc+sizeK7+1))
+        
+        cutoutE=cutout3[round(ycc-sizeK7/2):round(ycc+sizeK7/2+1),round(xcc-sizeK7/2):round(xcc+sizeK7/2+1)]
+        maskE=mask3[round(ycc-sizeK7/2):round(ycc+sizeK7/2+1),round(xcc-sizeK7/2):round(xcc+sizeK7/2+1)]
+        #print(cutoutE.shape)
+        #plt.imshow(cutoutE,origin='lower')
+        #plt.show()
+
+        if ( (np.sum(np.ravel(maskE))==0) & (cutoutE.shape[0]-cutoutE.shape[1]==0) & (AS1>0)  & (AS2>0)  & (AS3>0)  & (AS4>0) & (AS1<sizeimage)  & (AS2<sizeimage)  & (AS3<sizeimage)  & (AS4<sizeimage) ) :
 
           if which_calc=='asymmetry' :
-            full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
-          
+            #full_img_90 = ndimage.rotate(cutoutE, 90, reshape=True)
+            full_img_180 = ndimage.rotate(cutoutE, 180)
+
             # rotated_image_smaller=np.rot90(cutout3, 2)
             #differenceASY=np.absolute(cutout3-other_image)
-            differenceASY=np.absolute(cutoutE-full_img_90)
-            image_smaller_abs=np.abs(cutoutE)
-            denominatorexx=2*np.sum(image_smaller_abs)
-            asymmetry1xx=np.sum(differenceASY)/denominatorexx
-            asymm_array23.append(asymmetry1xx)
+            differenceASYbk=np.abs(cutoutE-full_img_180)
+            #image_smaller_absbk=np.abs(cutoutE)
+            #denominatorexxbk=2*np.sum(image_smaller_absbk)
+            #asymmetry1xxbk=np.sum(differenceASYbk)/denominatorexxbk
+            asymm_array23.append(sum(differenceASYbk))
+            area_array23.append(cutoutE.shape[0]**2)
             smoothness_background745.append(0)
+            area_smoothness.append(0)
+            # f, (ax1, ax2, ax3) = plt.subplots(1, 3, sharey=True, sharex=True,figsize=(12,6))
+            # ax1.imshow(cutoutE,origin='lower', cmap='hot')
+            # ax2.imshow(full_img_180,origin='lower', cmap='hot')
+            # #absVV=np.absolute(image_smaller)
+            # #sumabsVV=np.sum(absVV)
+            # #diffVV=np.absolute(image_smaller-rotated_image_smaller)
+            # ax3.imshow(differenceASYbk,origin='lower', cmap='hot')
+            # plt.show()
 
           elif which_calc=='smoothness' :
             imagesmooth745=smooth(cutoutE,smoothtype,int(smoothradiusX745), factor_smooth745)  # Il 15 alla fine che vuol dire ??
@@ -1089,15 +1214,17 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
             #padx=1
             #residuals745=np.absolute(np.ravel(residuals745[padx:-padx,padx:-padx]))
             #denomin_745=np.absolute(np.ravel(cutoutE[padx:-padx,padx:-padx]))
-            residuals745=np.absolute(np.ravel(residuals745))
-            denomin_745=np.absolute(np.ravel(cutoutE))
-  
-            _smoothness_background745=sum(residuals745)/sum(denomin_745)
+            residuals745b=np.abs(residuals745)
+            #denomin_745=np.abs(np.ravel(cutoutE))
+            
+            res_nonzero=residuals745b[residuals745b>0]
+            #_smoothness_background745=sum(residuals745)/sum(denomin_745)
             #print('\n\n Somme')
             #print(sum(residuals745))
             #print(sum(denomin_745))
-            smoothness_background745.append(_smoothness_background745)
-            asymm_array23.append(0)
+            smoothness_background745.append(sum(res_nonzero))
+            #area_smoothness.append(len(res_nonzero))
+            asymm_array23.append(0) ; area_array23.append(0)
 
         
 
@@ -1146,10 +1273,16 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
       print('Continue loop to smaller bkg region') 
     elif (asymm_array23!=[]) & (which_calc=='asymmetry') :
       asymm_array23=np.array(asymm_array23)
+      asymm_array23 = asymm_array23[~np.isnan(asymm_array23)]
+      asymm_array23 = asymm_array23[asymm_array23<40]
+      #print('asymm-array bkg =',asymm_array23)
       #asymm_array23=asymm_array23[asymm_array23>0]
       median_asymme_backg=np.median(asymm_array23)
       minimum_asymme_backg=min(asymm_array23)
+      area_bkg=area_array23[0] # maskE.shape[0]**2  # tanto dovrebbero avere tutti la stessa area
       median_smoothness_background745=0
+      minimum_smoothness_background745=0
+      area_smoothness=0
       #if (which_calc=='asymmetry') : 
       # print('median asymmetry bkg =',median_asymme_backg)
       break
@@ -1163,26 +1296,33 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
       #print(min(smoothness_background745),max(smoothness_background745))
       #time.sleep(0.2)
       smoothness_background745=np.array(smoothness_background745)
+
       #print('\nsmoothness background =')
       #print(smoothness_background745)
       #quit()
-      median_asymme_backg=0 ; minimum_asymme_backg=0
+      median_asymme_backg=0 ; minimum_asymme_backg=0 ; area_bkg=0
       median_smoothness_background745=np.median(smoothness_background745)
+      minimum_smoothness_background745=min(smoothness_background745)
+      area_smoothness=cutoutE.shape[0]**2 
       #if (which_calc=='smoothness') : 
-      print('smoothness bkg =',median_smoothness_background745)
+      #print('smoothness bkg =',median_smoothness_background745)
       break
   
   if smoothness_background745==[] : # per asimmetria non dovrebbero esserci problemi
     median_smoothness_background745=0
+    minimum_smoothness_background745=0
+    area_smoothness=0
 
   if asymm_array23==[] : # per asimmetria non dovrebbero esserci problemi
     median_asymme_backg=0
+    minimum_asymme_backg=0
+    area_bkg=0
   # print('which_calc =',which_calc)
   # print('median_smoothness_background745 =',median_smoothness_background745)
   print('best size background =',sizeK7)
   #quit()
 
-  return median_asymme_backg,minimum_asymme_backg,median_smoothness_background745
+  return median_asymme_backg,minimum_asymme_backg,median_smoothness_background745,minimum_smoothness_background745,area_bkg,area_smoothness
 
 
 
@@ -1194,9 +1334,9 @@ def asymmetry_bkg_simple(sizeK7_max,maskgood77,image77,Rmax77,which_calc,smoothr
 
 # MAKE SEGMENTATION IMAGE 
 
-def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_thr) : 
+def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,input_images_folder,IDgal,banda_obj,galaxy_index,test_segmap_index,size_square_source,res,smoothradius_4segmap,detection_thr,deblend_segmap) : 
   save_segmap=True
-  deblend_segmap=True
+  #deblend_segmap=True
 
   # pawlik based
 
@@ -1307,10 +1447,12 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
   # ----------------------------------------------------------------------------------
 
   elif segmentation_type=='photutils' :
-    print('Photutils based segmentation')
-    firstsegmap_snr=detection_thr*1 ; firstsegmap_npixels=10  
-
+    #print('Photutils based segmentation')
+    firstsegmap_snr=detection_thr*1 ; firstsegmap_npixels=5  
+    
+    #of=1
     try : 
+    #if of==1 :
       threshold1 = photutils.detect_threshold(imagein, nsigma=firstsegmap_snr)
       #npixelsV = firstsegmap_npixels*1  # minimum number of connected pixels
       segm1 = photutils.detect_sources(imagein, threshold1, firstsegmap_npixels)
@@ -1332,9 +1474,75 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
       sigmabackS=imagestatS[1]
 
       # Riapplica, stavolta con un background migliorato
-      threshold2 = backS + (2.0 * sigmabackS)
-      segmV = photutils.detect_sources(imagein, threshold1, firstsegmap_npixels)
+      threshold2 = backS + (detection_thr * sigmabackS)
+      segmV = photutils.detect_sources(imagein, threshold2, firstsegmap_npixels)
+      segmap_final= segmV.data
 
+      #plt.imshow(segmap_final)
+      #plt.show()
+      segmap_final_ones=segmap_final*1
+      maskgood=segmap_final*1 
+      segmap_final_ones[segmap_final_ones>0]=1
+      binary_pawlik_4_complete=segmap_final_ones*1
+
+
+      if segmap_detection=='automatic' :
+        allow_multi_regions=True # Looking for multiple segmentation regions inside a box size defined in running x (currently is 5 pixels distance from the center, i.e., 10 pixels box size)
+        # Look for the segmentation region closest to the center :
+        # Default is better to be False
+        # CHANGE THIS PART TO ALLOW A LARGER SQUARE
+        if allow_multi_regions==True :
+          center_x=round(maskgood.shape[0]/2)
+          center_y=round(maskgood.shape[1]/2)
+          running_x=np.arange(center_x-round(size_square_source/2),center_x+round(size_square_source/2)+1,1)
+          running_y=np.arange(center_y-round(size_square_source/2),center_y+round(size_square_source/2)+1,1)
+        else :
+          center_x=round(maskgood.shape[0]/2)
+          running_x=[center_x,center_x-1,center_x+1,center_x-2,center_x+2,center_x-3,center_x+3,center_x-4,center_x+4,center_x-5,center_x+5,center_x-6,center_x+6,center_x-7,center_x+7,center_x-8,center_x+8]
+          center_y=round(maskgood.shape[1]/2)
+          running_y=[center_y,center_y-1,center_y+1,center_y-2,center_y+2,center_y-3,center_y+3,center_y-4,center_y+4,center_y-5,center_y+5,center_y-6,center_y+6,center_y-7,center_y+7,center_y-8,center_y+8]
+        #while True:
+        indice_centrale_all=[] ; found=0
+        for tj in running_x :
+            for th in running_y :
+              indice_centrale=maskgood[th,tj]
+              if indice_centrale>0 : 
+                found=1
+                # Se indice_centrale > 0 significa che li ha detectato qualcosa
+                #print('indice centrale =',indice_centrale)
+                indice_centrale_all.append(indice_centrale)
+                #break
+        if found==1 :
+          if allow_multi_regions==True:
+            indice_set=list(set(indice_centrale_all)) 
+          else :
+            indice_set=[indice_centrale_all[0]] # Take simply the first found
+          #print('indice set =',indice_set)
+          how_many_indices=max(np.ravel(maskgood))
+          #print('maximum maskgood index =',how_many_indices)
+          indice_list_whole_image=np.arange(1,how_many_indices+1,1)
+          for indicex in indice_list_whole_image :
+            if indicex in indice_set :
+              #maskgood[maskgood!=indice_centrale]=0
+              maskgood[maskgood==indicex]=1
+            else :
+              maskgood[maskgood==indicex]=0
+              #if indice_centrale>0 :  
+        else :
+          maskgood=maskgood*0
+
+        binary_pawlik_4=maskgood*1
+      else :
+        maskgood[maskgood!=galaxy_index]=0
+        maskgood[maskgood==galaxy_index]=1
+        binary_pawlik_4=maskgood*1
+        segmap_final=maskgood*1
+      
+      #pixelmap= ndimage.binary_dilation(pixelmap).astype(pixelmap.dtype) 
+      maskgood=skimage.morphology.binary_dilation(maskgood) # ndimage.binary_dilation(pixelmap).astype(pixelmap.dtype)
+      binary_pawlik_4=skimage.morphology.binary_dilation(binary_pawlik_4)
+      segmap_final=skimage.morphology.binary_dilation(segmap_final)
+      binary_pawlik_4_complete=skimage.morphology.binary_dilation(binary_pawlik_4_complete)
       # norm=matplotlib.colors.Normalize(vmin=backS-2*sigmabackS, vmax=backS+20*sigmabackS, clip=False)
       # f, (ax1,ax2) = plt.subplots(1, 2,sharey=True,sharex=True)
       # ax1.imshow(imagein, origin='lower', norm=norm, cmap='hot')
@@ -1344,14 +1552,20 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
       # #if (show_all==True) :
       # plt.show()
       # SOURCE
-      sourceallV = segmV.data > 0.5
+      #sourceallV = segmV.data > 0.5
       #print('Created segmap, now convert bool to int')
-      maskgood=1*sourceallV
-
+      #maskgood=1*sourceallV
+    
+    #else :
     except :
+
       maskgood=np.zeros(imagein.shape)
+      binary_pawlik_4=maskgood*1
+      binary_pawlik_4_complete=maskgood*1
+      segmap_final=maskgood*1
     # Qui però il problema sta nell'isolare solo l'oggetto centrale !!!!
 
+  
   # ----------------------------------------------------------------------------------
   
   # pawlik based
@@ -1385,8 +1599,8 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
         sigmabackS=imagestatS[1]
         print('back and sigma =',backS,sigmabackS)
         # Riapplica, stavolta con un background migliorato
-        threshold2 = backS + (2.0 * sigmabackS)
-        segmV = photutils.detect_sources(imagein_smoothed, threshold1, firstsegmap_npixels)
+        threshold2 = backS + (detection_thr * sigmabackS)
+        segmV = photutils.detect_sources(imagein_smoothed, threshold2, firstsegmap_npixels)
         imagein_smoothed_skysub=imagein_smoothed-np.ones(imagein_smoothed.shape)*backS
         imagein_smoothed_skysub_debl=photutils.deblend_sources(imagein_smoothed, segmV, firstsegmap_npixels, kernel=None, labels=None, nlevels=16, contrast=0.001, mode='linear', connectivity=8, relabel=True) # mode exponential or linear , nlevels=32 default
         # Save this segmentation image :
@@ -1472,7 +1686,7 @@ def make_segmentation(segmap_detection,segmentation_type,imagein,IDpixscaleFF,in
 
 
 
-  if segmentation_type!='Pawlik' :
+  if (segmentation_type!='Pawlik') & (segmentation_type!='photutils') :
     try :
       which_image_segmap_SNpixel='smoothed'  # normal or smoothed
       # Create Pawlik segmentation map :
